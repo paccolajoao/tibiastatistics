@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+/.pnp
+.pnp.*
+
+# Env files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Next.js (frontend/)
+frontend/.next/
+frontend/out/
+frontend/.vercel
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+frontend/coverage/
+
+# Go (backend/)
+backend/tmp/
+backend/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo

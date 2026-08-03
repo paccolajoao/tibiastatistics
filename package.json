@@ -1,0 +1,15 @@
+{
+  "name": "tibiastatistics",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build:frontend": "pnpm --filter frontend build",
+    "lint:frontend": "pnpm --filter frontend lint",
+    "dev:backend": "cd backend && go run ./cmd/api",
+    "build:backend": "cd backend && go build ./...",
+    "migrate:up": "cd backend && migrate -path db/migrations -database \"$DATABASE_URL\" up",
+    "migrate:down": "cd backend && migrate -path db/migrations -database \"$DATABASE_URL\" down",
+    "sqlc:generate": "cd backend && sqlc generate"
+  },
+  "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee"
+}
