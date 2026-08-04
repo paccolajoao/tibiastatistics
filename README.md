@@ -2,6 +2,15 @@
 
 Portal de estatísticas para o jogo Tibia. Monorepo com backend em Go e frontend em Next.js.
 
+Funcionalidades:
+- **Autenticação** com JWT (access + refresh token via cookie httpOnly) e roles (`user`/`admin`).
+- **Estatísticas de mundos**: coleta periódica (poller) do número de jogadores online por mundo via TibiaData API, com gráficos de médias, série temporal e heatmap por hora do dia.
+- **Highscores**: proxy autenticado para os rankings da TibiaData API.
+- **Sessões de caça (hunting sessions)**: upload do JSON exportado pelo "Session Analyzer" do próprio jogo Tibia, com parsing automático de balance, XP, loot, criaturas mortas e itens looteados; permite comparar sessões e visualizar histórico.
+- **Sprites de criaturas/itens**: resolve ícones de criaturas e itens (usados nas telas de hunting) consultando a TibiaWiki, com cache de 30 dias no banco.
+
+> Nota: a maioria das telas do portal exige login (ver [Criar o usuário admin padrão](#5-criar-o-usuário-admin-padrão)).
+
 ## Stack
 
 **Frontend** (`frontend/`)
@@ -121,7 +130,9 @@ tibiastatistics/
 │   ├── lib/                    # api-client, query-client, auth context
 │   └── hooks/
 └── backend/     # Go
-    ├── cmd/api/                # entrypoint
+    ├── cmd/
+    │   ├── api/                  # entrypoint do servidor HTTP
+    │   └── seed-admin/           # cria/atualiza o usuário admin padrão
     ├── internal/
     │   ├── auth/                # JWT, bcrypt, middleware
     │   ├── config/
@@ -129,6 +140,7 @@ tibiastatistics/
     │   ├── handlers/
     │   ├── poller/               # coleta periódica de jogadores online + limpeza de retenção
     │   ├── router/
+    │   ├── sprites/               # cliente da TibiaWiki (resolução de sprites)
     │   └── tibia/                # cliente da TibiaData API
     └── db/
         ├── migrations/
@@ -141,7 +153,15 @@ Toda tabela do banco segue o padrão de auditoria: `created_at`, `updated_at` (m
 
 ### Coleta de jogadores online (poller)
 
-Uma goroutine em `internal/poller`, iniciada em `cmd/api/main.go`, roda a cada `POLLER_INTERVAL_MINUTES` (padrão 15 min): busca `GET /v4/worlds` na TibiaData API, filtra os mundos com `location` em `South America`/`North America` e `pvp_type` em `Optional PvP`/`Open PvP` (~51 mundos), e grava um snapshot (`world_player_snapshots`) por mundo. Na mesma execução, remove snapshots com mais de `SNAPSHOT_RETENTION_DAYS` (padrão 60 dias). Ambas as variáveis são opcionais no `.env`.
+Uma goroutine em `internal/poller`, iniciada em `cmd/api/main.go`, roda a cada `POLLER_INTERVAL_MINUTES` (padrão 15 min): busca `GET /v4/worlds` na TibiaData API, filtra os mundos com `location` em `South America`/`North America` e `pvp_type` em `Optional PvP`/`Open PvP` (~51 mundos), e grava um snapshot (`world_player_snapshots`) por mundo. Na mesma execução, remove snapshots com mais de `SNAPSHOT_RETENTION_DAYS` (padrão 60 dias). Ambas as variáveis são opcionais no `.env`. É a única forma de popular dados de população — não há endpoint de backfill manual.
+
+### Sessões de caça (hunting sessions)
+
+O Tibia permite exportar o resumo de uma sessão de caça (o "Session Analyzer" do próprio cliente do jogo) como um arquivo JSON. O portal permite fazer upload desse arquivo em **Hunting** → **Import**; o backend (`POST /api/hunting/sessions`) faz o parse dos campos (formatados como `"1,234"`, `"01:08h"`, `"2026-08-03, 17:39:17"` etc., no formato bruto do jogo) e armazena balance, dano, cura, XP, loot, criaturas mortas e itens looteados. As telas de **Hunts** e **Compare** listam e comparam sessões salvas do usuário autenticado.
+
+### Sprites de criaturas e itens
+
+Para exibir os ícones de criaturas mortas e itens looteados nas telas de hunting, o backend resolve o nome (em minúsculas, como aparece no export do jogo) para uma URL de imagem consultando a TibiaWiki (`tibia.fandom.com`), convertendo o nome para o formato de título de arquivo usado lá (ex.: `"a gold coin"` → `Gold Coin.gif`). O resultado é cacheado por 30 dias na tabela `game_asset_sprites`, inclusive quando não encontrado (evita reconsultar a wiki repetidamente).
 
 ## Endpoints do backend
 
@@ -155,6 +175,10 @@ Uma goroutine em `internal/poller`, iniciada em `cmd/api/main.go`, roda a cada `
 | GET | `/api/worlds/averages` | Média/mín/máx de jogadores online por mundo (requer Bearer token). Query params: `period` (`7`\|`14`\|`30`, padrão `7`), `location` e `pvp_type` (opcionais, filtro exato) |
 | GET | `/api/worlds/timeseries` | Série temporal de jogadores online (requer Bearer token). Query params: `period`, `world` (opcional) |
 | GET | `/api/worlds/hourly` | Média de jogadores online por hora do dia (UTC), usada no heatmap e no gráfico de linha por mundo (requer Bearer token). Query params: `period`, `world`, `location`, `pvp_type` (todos opcionais) |
+| POST | `/api/hunting/sessions` | Importa uma sessão de caça (requer Bearer token). Multipart form: `file` (JSON exportado pelo jogo), `name`, `loadout` (opcional) |
+| GET | `/api/hunting/sessions` | Lista as sessões de caça do usuário autenticado (requer Bearer token) |
+| DELETE | `/api/hunting/sessions/{id}` | Remove (soft delete) uma sessão de caça do usuário autenticado (requer Bearer token) |
+| GET | `/api/sprites` | Resolve URLs de imagem para criaturas/itens (requer Bearer token). Query params: `kind` (`creature`\|`item`), `names` (lista separada por vírgula) |
 
 ## Próximos passos sugeridos
 
@@ -162,3 +186,7 @@ Uma goroutine em `internal/poller`, iniciada em `cmd/api/main.go`, roda a cada `
 - Páginas de Personagens e Guilds no menu lateral (atualmente só o link existe)
 - Cache/rate-limit no proxy da TibiaData API
 - Testes automatizados (Go: `testing` + `httptest`; frontend: Vitest/Playwright)
+
+## Para a IA / Claude Code
+
+Veja [CLAUDE.md](CLAUDE.md) para arquitetura em mais detalhes, convenções do banco de dados e fluxo de autenticação do frontend.
