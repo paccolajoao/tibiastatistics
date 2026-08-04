@@ -12,14 +12,19 @@ import (
 
 type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	DeleteHuntingSession(ctx context.Context, arg DeleteHuntingSessionParams) error
 	DeleteSnapshotsOlderThan(ctx context.Context, collectedAt pgtype.Timestamptz) error
+	GetSpritesByNames(ctx context.Context, arg GetSpritesByNamesParams) ([]GameAssetSprite, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error)
 	GetWorldAverages(ctx context.Context, arg GetWorldAveragesParams) ([]GetWorldAveragesRow, error)
 	GetWorldHourlyAverages(ctx context.Context, arg GetWorldHourlyAveragesParams) ([]GetWorldHourlyAveragesRow, error)
 	GetWorldTimeSeries(ctx context.Context, arg GetWorldTimeSeriesParams) ([]GetWorldTimeSeriesRow, error)
+	InsertHuntingSession(ctx context.Context, arg InsertHuntingSessionParams) (HuntingSession, error)
 	InsertWorldPlayerSnapshot(ctx context.Context, arg InsertWorldPlayerSnapshotParams) error
+	ListHuntingSessions(ctx context.Context, userID pgtype.UUID) ([]HuntingSession, error)
 	UpsertAdminUser(ctx context.Context, arg UpsertAdminUserParams) (UpsertAdminUserRow, error)
+	UpsertSprite(ctx context.Context, arg UpsertSpriteParams) error
 }
 
 var _ Querier = (*Queries)(nil)

@@ -15,6 +15,8 @@ type Dependencies struct {
 	AuthHandler    *handlers.AuthHandler
 	TibiaHandler   *handlers.TibiaHandler
 	WorldsHandler  *handlers.WorldsHandler
+	HuntingHandler *handlers.HuntingHandler
+	SpritesHandler *handlers.SpritesHandler
 	Tokens         *auth.TokenManager
 	FrontendOrigin string
 }
@@ -57,6 +59,14 @@ func New(deps Dependencies) http.Handler {
 				r.Get("/timeseries", deps.WorldsHandler.TimeSeries)
 				r.Get("/hourly", deps.WorldsHandler.HourlyAverages)
 			})
+
+			r.Route("/hunting", func(r chi.Router) {
+				r.Post("/sessions", deps.HuntingHandler.Import)
+				r.Get("/sessions", deps.HuntingHandler.List)
+				r.Delete("/sessions/{id}", deps.HuntingHandler.Delete)
+			})
+
+			r.Get("/sprites", deps.SpritesHandler.Resolve)
 		})
 	})
 

@@ -27,12 +27,13 @@ const AUTH_PATH_PREFIX = "/api/auth/";
 
 async function request<T>(path: string, init: RequestInit = {}, isRetry = false): Promise<T> {
   const token = getAccessToken();
+  const isFormData = init.body instanceof FormData;
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init.headers,
     },
@@ -62,4 +63,7 @@ export const apiClient = {
   get: <T>(path: string) => request<T>(path, { method: "GET" }),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
+  postForm: <T>(path: string, formData: FormData) =>
+    request<T>(path, { method: "POST", body: formData }),
+  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };

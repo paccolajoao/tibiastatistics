@@ -11,6 +11,7 @@ import (
 	"github.com/pacco/tibiastatistics/backend/internal/handlers"
 	"github.com/pacco/tibiastatistics/backend/internal/poller"
 	"github.com/pacco/tibiastatistics/backend/internal/router"
+	"github.com/pacco/tibiastatistics/backend/internal/sprites"
 	"github.com/pacco/tibiastatistics/backend/internal/tibia"
 )
 
@@ -39,6 +40,8 @@ func main() {
 	authHandler := handlers.NewAuthHandler(queries, tokens)
 	tibiaHandler := handlers.NewTibiaHandler(tibiaClient)
 	worldsHandler := handlers.NewWorldsHandler(queries)
+	huntingHandler := handlers.NewHuntingHandler(queries)
+	spritesHandler := handlers.NewSpritesHandler(queries, sprites.NewClient())
 
 	worldPoller := poller.New(tibiaClient, queries, cfg.SnapshotRetention)
 	go worldPoller.Run(ctx, cfg.PollerInterval)
@@ -47,6 +50,8 @@ func main() {
 		AuthHandler:    authHandler,
 		TibiaHandler:   tibiaHandler,
 		WorldsHandler:  worldsHandler,
+		HuntingHandler: huntingHandler,
+		SpritesHandler: spritesHandler,
 		Tokens:         tokens,
 		FrontendOrigin: cfg.FrontendOrigin,
 	})

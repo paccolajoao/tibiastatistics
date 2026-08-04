@@ -8,6 +8,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type GameAssetSprite struct {
+	ID         pgtype.UUID        `json:"id"`
+	Kind       string             `json:"kind"`
+	Name       string             `json:"name"`
+	ImageUrl   pgtype.Text        `json:"image_url"`
+	ResolvedAt pgtype.Timestamptz `json:"resolved_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type HuntingSession struct {
+	ID                   pgtype.UUID        `json:"id"`
+	UserID               pgtype.UUID        `json:"user_id"`
+	Name                 string             `json:"name"`
+	Loadout              string             `json:"loadout"`
+	SessionStart         pgtype.Timestamptz `json:"session_start"`
+	SessionEnd           pgtype.Timestamptz `json:"session_end"`
+	SessionLengthSeconds int32              `json:"session_length_seconds"`
+	Balance              int64              `json:"balance"`
+	Damage               int64              `json:"damage"`
+	DamagePerHour        int64              `json:"damage_per_hour"`
+	Healing              int64              `json:"healing"`
+	HealingPerHour       int64              `json:"healing_per_hour"`
+	Loot                 int64              `json:"loot"`
+	Supplies             int64              `json:"supplies"`
+	XpGain               int64              `json:"xp_gain"`
+	XpPerHour            int64              `json:"xp_per_hour"`
+	RawXpGain            int64              `json:"raw_xp_gain"`
+	RawXpPerHour         int64              `json:"raw_xp_per_hour"`
+	KilledMonsters       []byte             `json:"killed_monsters"`
+	LootedItems          []byte             `json:"looted_items"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt            pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type User struct {
 	ID           pgtype.UUID        `json:"id"`
 	Email        string             `json:"email"`

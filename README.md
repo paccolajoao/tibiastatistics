@@ -141,7 +141,7 @@ Toda tabela do banco segue o padrão de auditoria: `created_at`, `updated_at` (m
 
 ### Coleta de jogadores online (poller)
 
-Uma goroutine em `internal/poller`, iniciada em `cmd/api/main.go`, roda a cada `POLLER_INTERVAL_MINUTES` (padrão 15 min): busca `GET /v4/worlds` na TibiaData API, filtra os mundos com `location = "South America"` e `pvp_type` em `Optional PvP`/`Open PvP`, e grava um snapshot (`world_player_snapshots`) por mundo. Na mesma execução, remove snapshots com mais de `SNAPSHOT_RETENTION_DAYS` (padrão 60 dias). Ambas as variáveis são opcionais no `.env`.
+Uma goroutine em `internal/poller`, iniciada em `cmd/api/main.go`, roda a cada `POLLER_INTERVAL_MINUTES` (padrão 15 min): busca `GET /v4/worlds` na TibiaData API, filtra os mundos com `location` em `South America`/`North America` e `pvp_type` em `Optional PvP`/`Open PvP` (~51 mundos), e grava um snapshot (`world_player_snapshots`) por mundo. Na mesma execução, remove snapshots com mais de `SNAPSHOT_RETENTION_DAYS` (padrão 60 dias). Ambas as variáveis são opcionais no `.env`.
 
 ## Endpoints do backend
 
@@ -152,8 +152,9 @@ Uma goroutine em `internal/poller`, iniciada em `cmd/api/main.go`, roda a cada `
 | POST | `/api/auth/refresh` | Renova access token a partir do cookie de refresh |
 | POST | `/api/auth/logout` | Limpa o cookie de refresh |
 | GET | `/api/tibia/highscores` | Proxy para a TibiaData API (requer Bearer token). Query params: `world`, `category`, `vocation`, `page` |
-| GET | `/api/worlds/averages` | Média/mín/máx de jogadores online por mundo (requer Bearer token). Query params: `period` (`7`\|`14`\|`30`, padrão `7`) |
+| GET | `/api/worlds/averages` | Média/mín/máx de jogadores online por mundo (requer Bearer token). Query params: `period` (`7`\|`14`\|`30`, padrão `7`), `location` e `pvp_type` (opcionais, filtro exato) |
 | GET | `/api/worlds/timeseries` | Série temporal de jogadores online (requer Bearer token). Query params: `period`, `world` (opcional) |
+| GET | `/api/worlds/hourly` | Média de jogadores online por hora do dia (UTC), usada no heatmap e no gráfico de linha por mundo (requer Bearer token). Query params: `period`, `world`, `location`, `pvp_type` (todos opcionais) |
 
 ## Próximos passos sugeridos
 

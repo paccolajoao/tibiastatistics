@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Trophy, User, Users2, LogOut, Globe } from "lucide-react";
+import { LayoutDashboard, Trophy, User, LogOut, Globe, Swords } from "lucide-react";
 
 import {
   Sidebar,
@@ -15,15 +15,24 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth/auth-context";
 
 const menuItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Worlds", href: "/worlds", icon: Globe },
-  { title: "Highscores", href: "/highscores", icon: Trophy },
-  { title: "Personagens", href: "/characters", icon: User },
-  { title: "Guilds", href: "/guilds", icon: Users2 },
+  {
+    title: "Hunting",
+    href: "/hunting",
+    icon: Swords,
+    children: [
+      { title: "Hunts", href: "/hunting/hunts" },
+      { title: "Comparação", href: "/hunting/compare" },
+    ],
+  },
 ];
 
 export function AppSidebar() {
@@ -48,13 +57,31 @@ export function AppSidebar() {
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
-                    render={<Link href={item.href} />}
-                    isActive={pathname === item.href}
+                    render={item.children ? undefined : <Link href={item.href} />}
+                    isActive={
+                      item.children
+                        ? pathname.startsWith(item.href)
+                        : pathname === item.href
+                    }
                     tooltip={item.title}
                   >
                     <item.icon />
                     <span>{item.title}</span>
                   </SidebarMenuButton>
+                  {item.children ? (
+                    <SidebarMenuSub>
+                      {item.children.map((child) => (
+                        <SidebarMenuSubItem key={child.href}>
+                          <SidebarMenuSubButton
+                            render={<Link href={child.href} />}
+                            isActive={pathname === child.href}
+                          >
+                            <span>{child.title}</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  ) : null}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
