@@ -16,8 +16,8 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const POSITIVE_COLOR = "oklch(0.6 0.15 145)";
-const NEGATIVE_COLOR = "var(--destructive)";
+const POSITIVE_COLOR = "var(--color-success)";
+const NEGATIVE_COLOR = "var(--color-danger)";
 
 export function HuntingBalanceChart({ sessions }: { sessions: HuntingSession[] }) {
   const data = [...sessions]

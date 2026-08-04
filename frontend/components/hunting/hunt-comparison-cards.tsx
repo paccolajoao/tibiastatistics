@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Award, ChevronDown, ChevronRight } from "lucide-react";
 
 import { AssetList } from "@/components/hunting/asset-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { HuntingSession } from "@/lib/hunting/types";
+import { cn } from "@/lib/utils";
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
@@ -108,15 +109,23 @@ export function HuntComparisonCards({ sessions }: { sessions: HuntingSession[] }
                   const value = metric.value(session);
                   const best = bestValue(sessions, metric);
                   const isBest = value === best && sessions.length > 1;
+                  const isSigned = metric.format === formatSigned;
                   return (
                     <div
                       key={metric.label}
-                      className={`flex items-center justify-between rounded-md px-2 py-1 text-sm ${
-                        isBest ? "bg-emerald-600/10 text-emerald-700 dark:text-emerald-400" : ""
-                      }`}
+                      className={cn(
+                        "flex items-center justify-between rounded-md px-2 py-1 text-sm",
+                        isBest && "bg-success/10 text-success",
+                      )}
                     >
                       <span className="text-muted-foreground">{metric.label}</span>
-                      <span className="font-medium">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 font-medium",
+                          !isBest && isSigned && (value >= 0 ? "text-success" : "text-danger"),
+                        )}
+                      >
+                        {isBest ? <Award className="size-3.5" /> : null}
                         {metric.format ? metric.format(value) : numberFormatter.format(value)}
                       </span>
                     </div>

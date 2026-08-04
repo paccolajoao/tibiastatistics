@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { HuntComparisonCards } from "@/components/hunting/hunt-comparison-cards";
 import { HuntSelector } from "@/components/hunting/hunt-selector";
 import { useHuntingSessions } from "@/lib/hunting/use-hunting-sessions";
@@ -37,7 +38,7 @@ export default function HuntingComparePage() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <Skeleton className="h-48 w-full" />
       ) : isError ? (
         <p className="text-sm text-destructive">Não foi possível carregar as hunts.</p>
       ) : sessions.length === 0 ? (

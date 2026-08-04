@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -181,7 +182,7 @@ export default function WorldsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
+            <Skeleton className="h-[300px] w-full" />
           ) : isError || !data ? (
             <p className="text-sm text-destructive">Não foi possível carregar os dados.</p>
           ) : filtered.length === 0 ? (
@@ -215,7 +216,7 @@ export default function WorldsPage() {
         </CardHeader>
         <CardContent>
           {isHourlyLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
+            <Skeleton className="h-[300px] w-full" />
           ) : isHourlyError || !hourlyData ? (
             <p className="text-sm text-destructive">Não foi possível carregar os dados.</p>
           ) : selectedWorld ? (
@@ -233,7 +234,11 @@ export default function WorldsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-full" />
+              ))}
+            </div>
           ) : isError || !data ? (
             <p className="text-sm text-destructive">Não foi possível carregar os dados.</p>
           ) : (

@@ -43,7 +43,9 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1.5">
-          <Trophy className="size-5 shrink-0" />
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <Trophy className="size-4" />
+          </span>
           <span className="font-semibold group-data-[collapsible=icon]:hidden">
             Tibia Statistics
           </span>

@@ -16,6 +16,7 @@ import {
 import { HuntingSessionDetails } from "@/components/hunting/hunting-session-details";
 import { useDeleteHuntingSession } from "@/lib/hunting/use-delete-hunting-session";
 import type { HuntingSession } from "@/lib/hunting/types";
+import { cn } from "@/lib/utils";
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
@@ -84,11 +85,10 @@ export function HuntingSessionsTable({ sessions }: { sessions: HuntingSession[] 
                 </TableCell>
                 <TableCell className="text-right">
                   <span
-                    className={`inline-flex items-center gap-1 font-medium ${
-                      session.balance >= 0
-                        ? "text-emerald-600 dark:text-emerald-500"
-                        : "text-destructive"
-                    }`}
+                    className={cn(
+                      "inline-flex items-center gap-1 font-medium",
+                      session.balance >= 0 ? "text-success" : "text-danger",
+                    )}
                   >
                     {session.balance >= 0 ? (
                       <ArrowUpRight className="size-3.5" />

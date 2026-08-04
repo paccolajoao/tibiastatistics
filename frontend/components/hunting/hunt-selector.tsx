@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { HuntingSession } from "@/lib/hunting/types";
+import { cn } from "@/lib/utils";
 
 const MAX_SELECTED = 5;
 const numberFormatter = new Intl.NumberFormat("pt-BR");
@@ -67,11 +68,10 @@ export function HuntSelector({
                   {new Date(session.session_start).toLocaleDateString("pt-BR")}
                 </TableCell>
                 <TableCell
-                  className={`text-right ${
-                    session.balance >= 0
-                      ? "text-emerald-600 dark:text-emerald-500"
-                      : "text-destructive"
-                  }`}
+                  className={cn(
+                    "text-right",
+                    session.balance >= 0 ? "text-success" : "text-danger",
+                  )}
                 >
                   {session.balance >= 0 ? "+" : "-"}
                   {numberFormatter.format(Math.abs(session.balance))}

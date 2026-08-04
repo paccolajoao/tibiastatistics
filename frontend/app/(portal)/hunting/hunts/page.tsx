@@ -11,6 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { HuntingBalanceChart } from "@/components/charts/hunting-balance-chart";
 import { HuntingXpChart } from "@/components/charts/hunting-xp-chart";
 import { DateRangeFilter } from "@/components/hunting/date-range-filter";
@@ -84,11 +86,10 @@ export default function HuntingPage() {
               <Coins className="size-3.5" /> Balance no período
             </CardDescription>
             <CardTitle
-              className={`text-2xl ${
-                summary.totalBalance >= 0
-                  ? "text-emerald-600 dark:text-emerald-500"
-                  : "text-destructive"
-              }`}
+              className={cn(
+                "text-2xl",
+                summary.totalBalance >= 0 ? "text-success" : "text-danger",
+              )}
             >
               {summary.totalBalance >= 0 ? "+" : "-"}
               {numberFormatter.format(Math.abs(summary.totalBalance))}
@@ -114,7 +115,13 @@ export default function HuntingPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Skeleton className="h-[280px]" />
+            <Skeleton className="h-[280px]" />
+          </div>
+          <Skeleton className="h-40" />
+        </div>
       ) : isError ? (
         <p className="text-sm text-destructive">Não foi possível carregar as hunts.</p>
       ) : allSessions.length === 0 ? (

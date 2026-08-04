@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { AlertCircle, Trophy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,9 +44,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center p-6">
+    <div className="flex flex-1 items-center justify-center bg-[radial-gradient(circle_at_top,_color-mix(in_oklch,var(--primary)_8%,transparent),_transparent_60%)] p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
+          <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Trophy className="size-5" />
+          </div>
           <CardTitle>Tibia Statistics</CardTitle>
           <CardDescription>Entre para acessar o portal de estatísticas.</CardDescription>
         </CardHeader>
@@ -73,7 +77,12 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {error ? (
+              <p className="flex items-center gap-1.5 text-sm text-destructive">
+                <AlertCircle className="size-3.5 shrink-0" />
+                {error}
+              </p>
+            ) : null}
             <Button type="submit" disabled={isSubmitting} className="mt-2">
               {isSubmitting ? "Entrando..." : "Entrar"}
             </Button>
