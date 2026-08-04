@@ -71,7 +71,9 @@ export default function HuntingComparePage() {
               <CardHeader>
                 <CardTitle>Comparação</CardTitle>
                 <CardDescription>
-                  A métrica destacada em verde indica a melhor hunt naquele critério
+                  A métrica destacada em verde indica a melhor hunt naquele critério. Valores
+                  normalizados por hora (estimativas) para permitir comparação justa entre hunts
+                  de durações diferentes.
                 </CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
