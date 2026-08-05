@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Trophy, User, LogOut, Globe, Swords } from "lucide-react";
+import { LayoutDashboard, Trophy, User, LogOut, Globe, Swords, UserCircle } from "lucide-react";
 
 import {
   Sidebar,
@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 
 const menuItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Personagens", href: "/characters", icon: UserCircle },
   { title: "Worlds", href: "/worlds", icon: Globe },
   {
     title: "Hunting",

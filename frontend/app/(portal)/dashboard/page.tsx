@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Award,
+  Coins,
   Fish,
   Flame,
   Hand,
@@ -15,8 +16,10 @@ import {
   Swords,
   Target,
   Trophy,
+  UserCircle,
   Users,
   Wand2,
+  Zap,
 } from "lucide-react";
 
 import {
@@ -43,7 +46,126 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HighscoresLevelChart } from "@/components/charts/highscores-level-chart";
+import { CharacterProgressionChart } from "@/components/charts/character-progression-chart";
+import { CharacterSelect, ALL_CHARACTERS_VALUE } from "@/components/characters/character-select";
+import { CharacterCard } from "@/components/characters/character-card";
+import { useCharacters } from "@/lib/characters/use-characters";
+import { useCharacterSnapshots } from "@/lib/characters/use-character-snapshots";
+import { useHuntingSessions } from "@/lib/hunting/use-hunting-sessions";
 import { useHighscores } from "@/lib/tibia/use-highscores";
+
+const dashboardNumberFormatter = new Intl.NumberFormat("pt-BR");
+
+function MyCharactersSection() {
+  const [selected, setSelected] = useState<string>(ALL_CHARACTERS_VALUE);
+  const { data: characters, isLoading: charactersLoading } = useCharacters();
+  const { data: sessions } = useHuntingSessions();
+  const { data: snapshots } = useCharacterSnapshots(
+    selected === ALL_CHARACTERS_VALUE ? "" : selected,
+  );
+
+  const allCharacters = characters ?? [];
+
+  const filteredSessions = useMemo(() => {
+    const allSessions = sessions ?? [];
+    return selected === ALL_CHARACTERS_VALUE
+      ? allSessions
+      : allSessions.filter((s) => s.character_id === selected);
+  }, [sessions, selected]);
+
+  const summary = useMemo(() => {
+    if (filteredSessions.length === 0) {
+      return { totalBalance: 0, totalXpGain: 0, count: 0 };
+    }
+    return {
+      totalBalance: filteredSessions.reduce((sum, s) => sum + s.balance, 0),
+      totalXpGain: filteredSessions.reduce((sum, s) => sum + s.xp_gain, 0),
+      count: filteredSessions.length,
+    };
+  }, [filteredSessions]);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
+        <div>
+          <CardTitle className="flex items-center gap-1.5">
+            <UserCircle className="size-4.5" /> Meus personagens
+          </CardTitle>
+          <CardDescription>Profit e XP agregados ou de um personagem específico</CardDescription>
+        </div>
+        <CharacterSelect
+          characters={allCharacters}
+          value={selected}
+          onChange={setSelected}
+          includeAllOption
+          className="w-[200px]"
+        />
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {charactersLoading ? (
+          <Skeleton className="h-[100px] w-full" />
+        ) : allCharacters.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Nenhum personagem cadastrado ainda. Acesse a página &quot;Personagens&quot; para
+            adicionar o primeiro.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-1.5">
+                    <Swords className="size-3.5" /> Hunts
+                  </CardDescription>
+                  <CardTitle className="text-2xl">{summary.count}</CardTitle>
+                </CardHeader>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-1.5">
+                    <Coins className="size-3.5" /> Balance
+                  </CardDescription>
+                  <CardTitle
+                    className={
+                      summary.totalBalance >= 0 ? "text-2xl text-success" : "text-2xl text-danger"
+                    }
+                  >
+                    {summary.totalBalance >= 0 ? "+" : "-"}
+                    {dashboardNumberFormatter.format(Math.abs(summary.totalBalance))}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-1.5">
+                    <Zap className="size-3.5" /> XP total
+                  </CardDescription>
+                  <CardTitle className="text-2xl">
+                    {dashboardNumberFormatter.format(summary.totalXpGain)}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            </div>
+
+            {selected === ALL_CHARACTERS_VALUE ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {allCharacters.map((character) => (
+                  <CharacterCard key={character.id} character={character} />
+                ))}
+              </div>
+            ) : snapshots && snapshots.length >= 2 ? (
+              <CharacterProgressionChart snapshots={snapshots} />
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Ainda não há histórico de level suficiente para este personagem.
+              </p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 const WORLD = "Blumera";
@@ -128,6 +250,8 @@ export default function DashboardPage() {
           </SelectContent>
         </Select>
       </div>
+
+      <MyCharactersSection />
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-3">

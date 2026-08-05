@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -73,6 +74,7 @@ type huntingSession struct {
 	KilledMonsters       []killedMonster `json:"killed_monsters"`
 	LootedItems          []lootedItem    `json:"looted_items"`
 	CreatedAt            time.Time       `json:"created_at"`
+	CharacterID          *string         `json:"character_id"`
 }
 
 var nonDigitPattern = regexp.MustCompile(`[^0-9-]`)
@@ -110,6 +112,105 @@ func parseSessionTime(raw string) (time.Time, error) {
 	return time.Parse(tibiaSessionTimeLayout, strings.TrimSpace(raw))
 }
 
+var (
+	sessionDataLinePattern = regexp.MustCompile(`^Session data: From (.+) to (.+)$`)
+	killedOrLootedLine     = regexp.MustCompile(`^(\d+)x\s+(.+)$`)
+)
+
+// parseClipboardSession parses the plain-text format produced by the Tibia
+// client's "copy to clipboard" session button into the same normalized
+// shape as the JSON export (huntingSessionPayload).
+func parseClipboardSession(raw string) (huntingSessionPayload, error) {
+	var payload huntingSessionPayload
+	fieldsByKey := map[string]*string{
+		"Raw XP Gain": &payload.RawXPGain,
+		"XP Gain":     &payload.XPGain,
+		"Raw XP/h":    &payload.RawXPPerHour,
+		"XP/h":        &payload.XPPerHour,
+		"Loot":        &payload.Loot,
+		"Supplies":    &payload.Supplies,
+		"Balance":     &payload.Balance,
+		"Damage":      &payload.Damage,
+		"Damage/h":    &payload.DamagePerHour,
+		"Healing":     &payload.Healing,
+		"Healing/h":   &payload.HealingPerHour,
+	}
+
+	const (
+		sectionNone = iota
+		sectionKilledMonsters
+		sectionLootedItems
+	)
+	section := sectionNone
+
+	lines := strings.Split(raw, "\n")
+	for i, line := range lines {
+		line = strings.TrimRight(line, "\r")
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		switch trimmed {
+		case "Killed Monsters:":
+			section = sectionKilledMonsters
+			continue
+		case "Looted Items:":
+			section = sectionLootedItems
+			continue
+		}
+
+		if section != sectionNone {
+			if match := killedOrLootedLine.FindStringSubmatch(trimmed); match != nil {
+				count, err := strconv.Atoi(match[1])
+				if err != nil {
+					return payload, fmt.Errorf("invalid clipboard session: line %d: %w", i+1, err)
+				}
+				name := match[2]
+				if section == sectionKilledMonsters {
+					payload.KilledMonsters = append(payload.KilledMonsters, killedMonster{Count: count, Name: name})
+				} else {
+					payload.LootedItems = append(payload.LootedItems, lootedItem{Count: count, Name: name})
+				}
+				continue
+			}
+			// A non-matching line ends the section (defensive: shouldn't
+			// normally happen since these sections are always last).
+			section = sectionNone
+		}
+
+		if match := sessionDataLinePattern.FindStringSubmatch(trimmed); match != nil {
+			payload.SessionStart = match[1]
+			payload.SessionEnd = match[2]
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "Session: ") {
+			payload.SessionLength = strings.TrimPrefix(trimmed, "Session: ")
+			continue
+		}
+
+		key, value, ok := strings.Cut(trimmed, ": ")
+		if !ok {
+			return payload, fmt.Errorf("invalid clipboard session: unrecognized line %d: %q", i+1, line)
+		}
+		if field, known := fieldsByKey[key]; known {
+			*field = value
+			continue
+		}
+		return payload, fmt.Errorf("invalid clipboard session: unknown field %q on line %d", key, i+1)
+	}
+
+	if payload.SessionStart == "" || payload.SessionEnd == "" {
+		return payload, fmt.Errorf("invalid clipboard session: missing session data line")
+	}
+	if payload.SessionLength == "" {
+		return payload, fmt.Errorf("invalid clipboard session: missing session length line")
+	}
+
+	return payload, nil
+}
+
 func userUUID(r *http.Request) (pgtype.UUID, bool) {
 	user, ok := auth.UserFromContext(r.Context())
 	if !ok {
@@ -134,16 +235,21 @@ func (h *HuntingHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, _, err := r.FormFile("file")
-	if err != nil {
-		http.Error(w, "missing file", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
 	var payload huntingSessionPayload
-	if err := json.NewDecoder(file).Decode(&payload); err != nil {
-		http.Error(w, "invalid session json: "+err.Error(), http.StatusBadRequest)
+	if file, _, err := r.FormFile("file"); err == nil {
+		defer file.Close()
+		if err := json.NewDecoder(file).Decode(&payload); err != nil {
+			http.Error(w, "invalid session json: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+	} else if text := strings.TrimSpace(r.FormValue("text")); text != "" {
+		payload, err = parseClipboardSession(text)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	} else {
+		http.Error(w, "missing file or text", http.StatusBadRequest)
 		return
 	}
 
@@ -153,6 +259,24 @@ func (h *HuntingHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	loadout := strings.TrimSpace(r.FormValue("loadout"))
+
+	characterIDRaw := strings.TrimSpace(r.FormValue("character_id"))
+	if characterIDRaw == "" {
+		http.Error(w, "character_id is required", http.StatusBadRequest)
+		return
+	}
+	var characterID pgtype.UUID
+	if err := characterID.Scan(characterIDRaw); err != nil {
+		http.Error(w, "invalid character_id", http.StatusBadRequest)
+		return
+	}
+	if _, err := h.queries.GetCharacterByID(r.Context(), database.GetCharacterByIDParams{
+		ID:     characterID,
+		UserID: userID,
+	}); err != nil {
+		http.Error(w, "character not found", http.StatusBadRequest)
+		return
+	}
 
 	sessionStart, err := parseSessionTime(payload.SessionStart)
 	if err != nil {
@@ -224,6 +348,7 @@ func (h *HuntingHandler) Import(w http.ResponseWriter, r *http.Request) {
 		RawXpPerHour:         parsed["raw_xp_per_hour"],
 		KilledMonsters:       killedMonsters,
 		LootedItems:          lootedItems,
+		CharacterID:          characterID,
 	})
 	if err != nil {
 		http.Error(w, "failed to save hunting session", http.StatusInternalServerError)
@@ -252,6 +377,55 @@ func (h *HuntingHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, sessions)
+}
+
+type assignCharacterPayload struct {
+	CharacterID string `json:"character_id"`
+}
+
+func (h *HuntingHandler) AssignCharacter(w http.ResponseWriter, r *http.Request) {
+	userID, ok := userUUID(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var id pgtype.UUID
+	if err := id.Scan(chi.URLParam(r, "id")); err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	var payload assignCharacterPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var characterID pgtype.UUID
+	if err := characterID.Scan(strings.TrimSpace(payload.CharacterID)); err != nil {
+		http.Error(w, "invalid character_id", http.StatusBadRequest)
+		return
+	}
+	if _, err := h.queries.GetCharacterByID(r.Context(), database.GetCharacterByIDParams{
+		ID:     characterID,
+		UserID: userID,
+	}); err != nil {
+		http.Error(w, "character not found", http.StatusBadRequest)
+		return
+	}
+
+	row, err := h.queries.UpdateHuntingSessionCharacter(r.Context(), database.UpdateHuntingSessionCharacterParams{
+		ID:          id,
+		UserID:      userID,
+		CharacterID: characterID,
+	})
+	if err != nil {
+		http.Error(w, "failed to update hunting session", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toHuntingSession(row))
 }
 
 func (h *HuntingHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -284,6 +458,12 @@ func toHuntingSession(row database.HuntingSession) huntingSession {
 	var looted []lootedItem
 	_ = json.Unmarshal(row.LootedItems, &looted)
 
+	var characterID *string
+	if row.CharacterID.Valid {
+		s := uuidString(row.CharacterID)
+		characterID = &s
+	}
+
 	return huntingSession{
 		ID:                   uuidString(row.ID),
 		Name:                 row.Name,
@@ -305,6 +485,7 @@ func toHuntingSession(row database.HuntingSession) huntingSession {
 		KilledMonsters:       killed,
 		LootedItems:          looted,
 		CreatedAt:            row.CreatedAt.Time,
+		CharacterID:          characterID,
 	}
 }
 

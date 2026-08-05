@@ -12,13 +12,14 @@ import (
 )
 
 type Dependencies struct {
-	AuthHandler    *handlers.AuthHandler
-	TibiaHandler   *handlers.TibiaHandler
-	WorldsHandler  *handlers.WorldsHandler
-	HuntingHandler *handlers.HuntingHandler
-	SpritesHandler *handlers.SpritesHandler
-	Tokens         *auth.TokenManager
-	FrontendOrigin string
+	AuthHandler       *handlers.AuthHandler
+	TibiaHandler      *handlers.TibiaHandler
+	WorldsHandler     *handlers.WorldsHandler
+	HuntingHandler    *handlers.HuntingHandler
+	SpritesHandler    *handlers.SpritesHandler
+	CharactersHandler *handlers.CharactersHandler
+	Tokens            *auth.TokenManager
+	FrontendOrigin    string
 }
 
 func New(deps Dependencies) http.Handler {
@@ -64,9 +65,19 @@ func New(deps Dependencies) http.Handler {
 				r.Post("/sessions", deps.HuntingHandler.Import)
 				r.Get("/sessions", deps.HuntingHandler.List)
 				r.Delete("/sessions/{id}", deps.HuntingHandler.Delete)
+				r.Patch("/sessions/{id}/character", deps.HuntingHandler.AssignCharacter)
 			})
 
 			r.Get("/sprites", deps.SpritesHandler.Resolve)
+
+			r.Route("/characters", func(r chi.Router) {
+				r.Post("/", deps.CharactersHandler.Create)
+				r.Get("/", deps.CharactersHandler.List)
+				r.Get("/{id}", deps.CharactersHandler.Get)
+				r.Delete("/{id}", deps.CharactersHandler.Delete)
+				r.Post("/{id}/refresh", deps.CharactersHandler.Refresh)
+				r.Get("/{id}/snapshots", deps.CharactersHandler.Snapshots)
+			})
 		})
 	})
 

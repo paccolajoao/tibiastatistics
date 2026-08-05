@@ -42,18 +42,23 @@ func main() {
 	worldsHandler := handlers.NewWorldsHandler(queries)
 	huntingHandler := handlers.NewHuntingHandler(queries)
 	spritesHandler := handlers.NewSpritesHandler(queries, sprites.NewClient())
+	charactersHandler := handlers.NewCharactersHandler(queries, tibiaClient)
 
 	worldPoller := poller.New(tibiaClient, queries, cfg.SnapshotRetention)
 	go worldPoller.Run(ctx, cfg.PollerInterval)
 
+	characterPoller := poller.NewCharacterPoller(tibiaClient, queries, cfg.CharacterSnapshotRetention)
+	go characterPoller.Run(ctx, cfg.CharacterPollerInterval)
+
 	r := router.New(router.Dependencies{
-		AuthHandler:    authHandler,
-		TibiaHandler:   tibiaHandler,
-		WorldsHandler:  worldsHandler,
-		HuntingHandler: huntingHandler,
-		SpritesHandler: spritesHandler,
-		Tokens:         tokens,
-		FrontendOrigin: cfg.FrontendOrigin,
+		AuthHandler:       authHandler,
+		TibiaHandler:      tibiaHandler,
+		WorldsHandler:     worldsHandler,
+		HuntingHandler:    huntingHandler,
+		SpritesHandler:    spritesHandler,
+		CharactersHandler: charactersHandler,
+		Tokens:            tokens,
+		FrontendOrigin:    cfg.FrontendOrigin,
 	})
 
 	log.Printf("listening on :%s", cfg.Port)

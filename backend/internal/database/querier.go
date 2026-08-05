@@ -12,17 +12,27 @@ import (
 
 type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	DeleteCharacterSnapshotsOlderThan(ctx context.Context, capturedAt pgtype.Timestamptz) error
 	DeleteHuntingSession(ctx context.Context, arg DeleteHuntingSessionParams) error
 	DeleteSnapshotsOlderThan(ctx context.Context, collectedAt pgtype.Timestamptz) error
+	GetCharacterByID(ctx context.Context, arg GetCharacterByIDParams) (Character, error)
 	GetSpritesByNames(ctx context.Context, arg GetSpritesByNamesParams) ([]GameAssetSprite, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error)
 	GetWorldAverages(ctx context.Context, arg GetWorldAveragesParams) ([]GetWorldAveragesRow, error)
 	GetWorldHourlyAverages(ctx context.Context, arg GetWorldHourlyAveragesParams) ([]GetWorldHourlyAveragesRow, error)
 	GetWorldTimeSeries(ctx context.Context, arg GetWorldTimeSeriesParams) ([]GetWorldTimeSeriesRow, error)
+	InsertCharacter(ctx context.Context, arg InsertCharacterParams) (Character, error)
+	InsertCharacterSnapshot(ctx context.Context, arg InsertCharacterSnapshotParams) error
 	InsertHuntingSession(ctx context.Context, arg InsertHuntingSessionParams) (HuntingSession, error)
 	InsertWorldPlayerSnapshot(ctx context.Context, arg InsertWorldPlayerSnapshotParams) error
+	ListAllActiveCharacters(ctx context.Context) ([]Character, error)
+	ListCharacterSnapshots(ctx context.Context, arg ListCharacterSnapshotsParams) ([]CharacterSnapshot, error)
+	ListCharactersByUser(ctx context.Context, userID pgtype.UUID) ([]Character, error)
 	ListHuntingSessions(ctx context.Context, userID pgtype.UUID) ([]HuntingSession, error)
+	SoftDeleteCharacter(ctx context.Context, arg SoftDeleteCharacterParams) error
+	UpdateCharacterSnapshot(ctx context.Context, arg UpdateCharacterSnapshotParams) (Character, error)
+	UpdateHuntingSessionCharacter(ctx context.Context, arg UpdateHuntingSessionCharacterParams) (HuntingSession, error)
 	UpsertAdminUser(ctx context.Context, arg UpsertAdminUserParams) (UpsertAdminUserRow, error)
 	UpsertSprite(ctx context.Context, arg UpsertSpriteParams) error
 }

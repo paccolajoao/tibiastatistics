@@ -13,7 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CharacterSelect } from "@/components/characters/character-select";
 import { HuntingSessionDetails } from "@/components/hunting/hunting-session-details";
+import { useCharacters } from "@/lib/characters/use-characters";
+import { useAssignHuntingSessionCharacter } from "@/lib/hunting/use-assign-hunting-session-character";
 import { useDeleteHuntingSession } from "@/lib/hunting/use-delete-hunting-session";
 import type { HuntingSession } from "@/lib/hunting/types";
 import { cn } from "@/lib/utils";
@@ -33,7 +36,11 @@ function formatDuration(seconds: number) {
 
 export function HuntingSessionsTable({ sessions }: { sessions: HuntingSession[] }) {
   const { mutate: deleteSession, isPending } = useDeleteHuntingSession();
+  const { mutate: assignCharacter } = useAssignHuntingSessionCharacter();
+  const { data: characters } = useCharacters();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const characterById = new Map((characters ?? []).map((c) => [c.id, c]));
 
   return (
     <Table>
@@ -41,6 +48,7 @@ export function HuntingSessionsTable({ sessions }: { sessions: HuntingSession[] 
         <TableRow>
           <TableHead className="w-8" />
           <TableHead>Nome</TableHead>
+          <TableHead>Personagem</TableHead>
           <TableHead>Set</TableHead>
           <TableHead>Data</TableHead>
           <TableHead>Duração</TableHead>
@@ -55,6 +63,7 @@ export function HuntingSessionsTable({ sessions }: { sessions: HuntingSession[] 
       <TableBody>
         {sessions.map((session) => {
           const isExpanded = expandedId === session.id;
+          const character = session.character_id ? characterById.get(session.character_id) : undefined;
           return (
             <Fragment key={session.id}>
               <TableRow
@@ -70,6 +79,22 @@ export function HuntingSessionsTable({ sessions }: { sessions: HuntingSession[] 
                   )}
                 </TableCell>
                 <TableCell className="font-medium">{session.name}</TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  {character ? (
+                    <Badge variant="secondary">{character.name}</Badge>
+                  ) : (
+                    <CharacterSelect
+                      characters={characters ?? []}
+                      value=""
+                      onChange={(characterId) =>
+                        assignCharacter({ sessionId: session.id, characterId })
+                      }
+                      placeholder="Vincular personagem"
+                      size="sm"
+                      className="w-[180px]"
+                    />
+                  )}
+                </TableCell>
                 <TableCell>
                   {session.loadout ? (
                     <Badge variant="secondary">{session.loadout}</Badge>
@@ -125,7 +150,7 @@ export function HuntingSessionsTable({ sessions }: { sessions: HuntingSession[] 
               </TableRow>
               {isExpanded ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={10} className="bg-muted/30 p-0">
+                  <TableCell colSpan={11} className="bg-muted/30 p-0">
                     <HuntingSessionDetails session={session} />
                   </TableCell>
                 </TableRow>

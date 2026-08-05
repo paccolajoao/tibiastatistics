@@ -11,13 +11,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CharacterSelect, ALL_CHARACTERS_VALUE } from "@/components/characters/character-select";
 import { HuntComparisonCards } from "@/components/hunting/hunt-comparison-cards";
 import { HuntSelector } from "@/components/hunting/hunt-selector";
+import { useCharacters } from "@/lib/characters/use-characters";
 import { useHuntingSessions } from "@/lib/hunting/use-hunting-sessions";
 
 export default function HuntingComparePage() {
   const { data, isLoading, isError } = useHuntingSessions();
-  const sessions = useMemo(() => data ?? [], [data]);
+  const { data: characters } = useCharacters();
+  const [characterFilter, setCharacterFilter] = useState<string>(ALL_CHARACTERS_VALUE);
+  const allSessions = useMemo(() => data ?? [], [data]);
+  const sessions = useMemo(
+    () =>
+      characterFilter === ALL_CHARACTERS_VALUE
+        ? allSessions
+        : allSessions.filter((s) => s.character_id === characterFilter),
+    [allSessions, characterFilter],
+  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const selectedSessions = useMemo(
@@ -27,14 +38,23 @@ export default function HuntingComparePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <GitCompare className="size-6 text-muted-foreground" />
-        <div>
-          <h1 className="text-2xl font-semibold">Comparação de hunts</h1>
-          <p className="text-sm text-muted-foreground">
-            Selecione até 5 hunts para comparar lado a lado
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <GitCompare className="size-6 text-muted-foreground" />
+          <div>
+            <h1 className="text-2xl font-semibold">Comparação de hunts</h1>
+            <p className="text-sm text-muted-foreground">
+              Selecione até 5 hunts para comparar lado a lado
+            </p>
+          </div>
         </div>
+        <CharacterSelect
+          characters={characters ?? []}
+          value={characterFilter}
+          onChange={setCharacterFilter}
+          includeAllOption
+          className="w-[200px]"
+        />
       </div>
 
       {isLoading ? (

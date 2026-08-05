@@ -29,4 +29,5 @@ export type HuntingSession = {
   killed_monsters: KilledMonster[];
   looted_items: LootedItem[];
   created_at: string;
+  character_id: string | null;
 };

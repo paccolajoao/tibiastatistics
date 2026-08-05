@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Upload } from "lucide-react";
 
@@ -16,28 +17,46 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { CharacterSelect } from "@/components/characters/character-select";
+import { useCharacters } from "@/lib/characters/use-characters";
 import { useImportHuntingSession } from "@/lib/hunting/use-import-hunting-session";
+
+type ImportMode = "file" | "text";
 
 export function ImportHuntingDialog() {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<ImportMode>("file");
   const [file, setFile] = useState<File | null>(null);
+  const [text, setText] = useState("");
   const [name, setName] = useState("");
   const [loadout, setLoadout] = useState("");
+  const [characterId, setCharacterId] = useState("");
   const { mutate, isPending, error, reset } = useImportHuntingSession();
+  const { data: characters } = useCharacters();
+  const hasCharacters = (characters?.length ?? 0) > 0;
 
   function resetForm() {
+    setMode("file");
     setFile(null);
+    setText("");
     setName("");
     setLoadout("");
+    setCharacterId("");
     reset();
   }
 
+  const isSourceValid = mode === "file" ? !!file : text.trim().length > 0;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file || !name.trim()) return;
+    if (!isSourceValid || !name.trim() || !characterId) return;
 
     mutate(
-      { file, name: name.trim(), loadout: loadout.trim() },
+      mode === "file"
+        ? { file: file as File, name: name.trim(), loadout: loadout.trim(), characterId }
+        : { text: text.trim(), name: name.trim(), loadout: loadout.trim(), characterId },
       {
         onSuccess: () => {
           setOpen(false);
@@ -68,11 +87,33 @@ export function ImportHuntingDialog() {
           <DialogHeader>
             <DialogTitle>Importar hunting session</DialogTitle>
             <DialogDescription>
-              Envie o arquivo .json exportado pelo Hunt Analyzer do Tibia.
+              Envie o arquivo .json exportado pelo Hunt Analyzer do Tibia ou cole o texto copiado
+              pelo botão &quot;copy to clipboard&quot; do jogo.
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-4">
+            {!hasCharacters ? (
+              <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+                Você ainda não tem nenhum personagem cadastrado.{" "}
+                <Link href="/characters" className="font-medium text-foreground underline">
+                  Cadastre um personagem
+                </Link>{" "}
+                antes de importar uma hunt.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Label>Personagem</Label>
+                <CharacterSelect
+                  characters={characters ?? []}
+                  value={characterId}
+                  onChange={setCharacterId}
+                  placeholder="Selecione o personagem desta hunt"
+                  className="w-full"
+                />
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
               <Label htmlFor="hunt-name">Nome da hunt</Label>
               <Input
@@ -95,14 +136,33 @@ export function ImportHuntingDialog() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="hunt-file">Arquivo da sessão (.json)</Label>
-              <Input
-                id="hunt-file"
-                type="file"
-                accept=".json,application/json"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                required
-              />
+              <Label>Dados da sessão</Label>
+              <Tabs value={mode} onValueChange={(value) => setMode(value as ImportMode)}>
+                <TabsList>
+                  <TabsTrigger value="file">Arquivo (.json)</TabsTrigger>
+                  <TabsTrigger value="text">Colar texto</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {mode === "file" ? (
+                <Input
+                  id="hunt-file"
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  required
+                />
+              ) : (
+                <Textarea
+                  id="hunt-text"
+                  placeholder={"Session data: From 2026-08-05, 13:07:40 to 2026-08-05, 14:01:03\nSession: 00:53h\n..."}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  rows={10}
+                  className="font-mono text-xs"
+                  required
+                />
+              )}
             </div>
 
             {error ? (
@@ -116,7 +176,10 @@ export function ImportHuntingDialog() {
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancelar
             </DialogClose>
-            <Button type="submit" disabled={!file || !name.trim() || isPending}>
+            <Button
+              type="submit"
+              disabled={!isSourceValid || !name.trim() || !characterId || isPending}
+            >
               {isPending ? "Importando..." : "Importar"}
             </Button>
           </DialogFooter>

@@ -8,6 +8,37 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Character struct {
+	ID                pgtype.UUID        `json:"id"`
+	UserID            pgtype.UUID        `json:"user_id"`
+	Name              string             `json:"name"`
+	World             string             `json:"world"`
+	Vocation          string             `json:"vocation"`
+	Level             int32              `json:"level"`
+	Sex               string             `json:"sex"`
+	Residence         string             `json:"residence"`
+	GuildName         string             `json:"guild_name"`
+	GuildRank         string             `json:"guild_rank"`
+	AchievementPoints int32              `json:"achievement_points"`
+	AccountStatus     string             `json:"account_status"`
+	LastLogin         pgtype.Timestamptz `json:"last_login"`
+	IsMain            bool               `json:"is_main"`
+	LastSyncedAt      pgtype.Timestamptz `json:"last_synced_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type CharacterSnapshot struct {
+	ID                pgtype.UUID        `json:"id"`
+	CharacterID       pgtype.UUID        `json:"character_id"`
+	Level             int32              `json:"level"`
+	Vocation          string             `json:"vocation"`
+	World             string             `json:"world"`
+	AchievementPoints int32              `json:"achievement_points"`
+	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
+}
+
 type GameAssetSprite struct {
 	ID         pgtype.UUID        `json:"id"`
 	Kind       string             `json:"kind"`
@@ -43,6 +74,7 @@ type HuntingSession struct {
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt            pgtype.Timestamptz `json:"deleted_at"`
+	CharacterID          pgtype.UUID        `json:"character_id"`
 }
 
 type User struct {
