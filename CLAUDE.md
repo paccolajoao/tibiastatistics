@@ -59,16 +59,22 @@ There's no test suite to target yet. To exercise a single handler manually, run 
 - **`internal/handlers`**: one file per feature area (`auth.go`, `tibia.go`, `worlds.go`, `hunting.go`, `sprites.go`), each a struct holding its dependencies (queries, external clients) with methods matching chi handler signatures. `response.go` has the shared `writeJSON` helper.
 - **`internal/tibia`**: thin HTTP client for the TibiaData API (`GetWorlds`, `GetHighscores`). Backend proxies these rather than the frontend calling TibiaData directly, so the JWT gate applies uniformly and TibiaData's response shape is normalized.
 - **`internal/sprites`**: HTTP client for TibiaWiki's MediaWiki API. `titleCase` reproduces TibiaWiki's file-naming convention (drops leading articles like "a"/"an", title-cases words, keeps small words lowercase mid-title) to turn a lowercase in-game name (e.g. `"a gold coin"`) into the wiki file title (`"Gold Coin"`) before requesting `File:<Title>.gif` image info.
-- **`internal/poller`**: background goroutine started in `main.go` (not an external cron). Every `POLLER_INTERVAL_MINUTES` (default 15) it fetches `GET /v4/worlds`, filters to worlds with `location` in South America/North America and `pvp_type` in Optional PvP/Open PvP (~51 worlds), and inserts one `world_player_snapshots` row per matching world. In the same run it deletes snapshots older than `SNAPSHOT_RETENTION_DAYS` (default 60). This is the only writer of population data — there is no manual/backfill endpoint.
+- **`internal/poller`**: two background goroutines started in `main.go` (not external crons).
+  - `Poller` (`poller.go`): every `POLLER_INTERVAL_MINUTES` (default 15) fetches `GET /v4/worlds`, filters to worlds with `location` in South America/North America and `pvp_type` in Optional PvP/Open PvP (~51 worlds), and inserts one `world_player_snapshots` row per matching world. In the same run it deletes snapshots older than `SNAPSHOT_RETENTION_DAYS` (default 60). This is the only writer of population data — there is no manual/backfill endpoint.
+  - `CharacterPoller` (`characters.go`): every `CHARACTER_POLLER_INTERVAL_MINUTES` (default 60) re-fetches every registered `characters` row from `GET /v4/character/{name}` (sequentially, one request per character — a per-character failure logs and continues rather than aborting the run), updates the character's stored fields, and appends a `character_snapshots` row for progression history. Deletes snapshots older than `CHARACTER_SNAPSHOT_RETENTION_DAYS` (default 365) each run.
 
 ### Hunting sessions feature
 
-Users upload the JSON session file Tibia's client exports after a hunt (via the "Session Analyzer" copy-to-clipboard/save feature in-game). `POST /api/hunting/sessions` (`handlers/hunting.go`) accepts multipart form data (`file` + `name` + optional `loadout`), and:
+Users upload the JSON session file Tibia's client exports after a hunt (via the "Session Analyzer" copy-to-clipboard/save feature in-game). `POST /api/hunting/sessions` (`handlers/hunting.go`) accepts multipart form data (`file` + `name` + `character_id` + optional `loadout`), and:
 1. Decodes the raw Tibia JSON shape (`huntingSessionPayload`, field names like `"Damage/h"`, `"Killed Monsters"` — these come straight from the game client's export format, not designed by us).
 2. Parses string/formatted fields into typed values: `parseSignedNumber` strips non-digit characters from formatted numbers (e.g. `"1,234"` → `1234`), `parseSessionLength` converts `"01:08h"` → seconds, `parseSessionTime` parses the `"2006-01-02, 15:04:05"` layout.
 3. Stores `killed_monsters`/`looted_items` as JSONB.
 
-Sessions belong to the authenticated user (`user_id` from JWT context) — no sharing/team feature exists. Soft-deleted like every other table (see below).
+Sessions belong to the authenticated user (`user_id` from JWT context) — no sharing/team feature exists. Soft-deleted like every other table (see below). `character_id` (added in migration `000007`, nullable FK to `characters`) is **required at the API layer** for new imports (the handler verifies the character belongs to the requesting user before accepting), but the column itself is nullable at the DB level so pre-existing rows imported before this feature keep `character_id = NULL` and remain readable — the frontend shows these as "sem boneco vinculado".
+
+### Characters ("bonecos") feature
+
+Users register N Tibia characters against their account by name only (`POST /api/characters`, `handlers/characters.go`); the backend resolves everything else via `tibia.GetCharacter` (`GET /v4/character/{name}`) — level, vocation, world, sex, residence, guild, achievement points, account status, last login, and a best-effort `is_main` flag derived from the character's own entry in TibiaData's `other_characters` list. Duplicate names per user are rejected (partial unique index on `(user_id, name)`), unknown names return 404. `POST /api/characters/{id}/refresh` re-fetches on demand; `GET /api/characters/{id}/snapshots` serves the time-series history populated by manual refreshes and the `CharacterPoller` (see above), used to render a level-over-time progression chart — note TibiaData's character endpoint has no XP field, so this is level, not XP, progression. Soft-deleting a character does not touch hunts already linked to it.
 
 ### Sprite resolution / caching
 
@@ -78,17 +84,18 @@ Sessions belong to the authenticated user (`user_id` from JWT context) — no sh
 
 Every table follows the same audit pattern: `created_at`, `updated_at` (auto-maintained by the `set_updated_at` trigger — see migration 000002), `deleted_at` (soft delete; **all read queries must filter `deleted_at IS NULL`**, sqlc won't do this for you). `users` additionally has a `role` column (`user` | `admin`).
 
-Migrations are sequential and numbered (`000001`...`000005`); each has a paired `.up.sql`/`.down.sql`. When adding a table or column, add a new migration rather than editing an existing one, then update the relevant `db/queries/*.sql` and run `pnpm sqlc:generate`.
+Migrations are sequential and numbered (`000001`...`000007`); each has a paired `.up.sql`/`.down.sql`. When adding a table or column, add a new migration rather than editing an existing one, then update the relevant `db/queries/*.sql` and run `pnpm sqlc:generate`.
 
 ### Frontend structure
 
-- **Route groups**: `app/(auth)/login` (public) and `app/(portal)/*` (protected — dashboard, worlds, hunting) share layout via Next.js route groups; `(portal)/layout.tsx` renders the sidebar (`components/sidebar/app-sidebar.tsx`).
+- **Route groups**: `app/(auth)/login` (public) and `app/(portal)/*` (protected — dashboard, worlds, hunting, characters) share layout via Next.js route groups; `(portal)/layout.tsx` renders the sidebar (`components/sidebar/app-sidebar.tsx`).
 - **Auth flow** (`lib/auth/auth-context.tsx`): the access token lives only in a `useRef` in memory (never localStorage), refreshed via the HTTP-only refresh cookie. On mount, and on any `401` from `apiClient`, it calls `POST /api/auth/refresh`; concurrent refresh calls are deduped via a shared in-flight promise (`refreshPromiseRef`). `lib/api-client.ts`'s `request()` retries a failed request exactly once after a successful refresh (`isRetry` flag prevents loops), and never intercepts `/api/auth/*` calls themselves.
 - **Data fetching**: each feature area under `lib/<feature>/` (`lib/tibia`, `lib/worlds`, `lib/hunting`) has its own `use-*.ts` TanStack Query hooks wrapping `apiClient`. Follow this pattern (one hook file per query/mutation) rather than calling `apiClient` directly from components.
 - **`components/charts/*`**: Recharts-based, built on shadcn's `components/ui/chart.tsx` wrapper.
 - **`components/hunting/*`**: session import dialog, session table/details/comparison, and `game-sprite.tsx` which consumes the `/api/sprites` endpoint to render creature/item icons.
+- **`components/characters/*`**: character cards, add/delete dialogs, and `character-select.tsx` — a shared `Select`-based picker (with an "all characters" option) reused by the hunting import dialog, the hunts/compare filters, and the dashboard.
 - Path alias `@/*` maps to the `frontend/` root (see `tsconfig.json` / `components.json` for shadcn config).
 
 ## Environment
 
-Backend reads from `backend/.env` (see `backend/.env.example`): `PORT`, `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_ORIGIN`, `ADMIN_EMAIL`/`ADMIN_PASSWORD` (seed-admin only), and optional `POLLER_INTERVAL_MINUTES`/`SNAPSHOT_RETENTION_DAYS`. Frontend reads `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:8080`).
+Backend reads from `backend/.env` (see `backend/.env.example`): `PORT`, `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_ORIGIN`, `ADMIN_EMAIL`/`ADMIN_PASSWORD` (seed-admin only), and optional `POLLER_INTERVAL_MINUTES`/`SNAPSHOT_RETENTION_DAYS` (world poller) and `CHARACTER_POLLER_INTERVAL_MINUTES`/`CHARACTER_SNAPSHOT_RETENTION_DAYS` (character poller). Frontend reads `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:8080`).
