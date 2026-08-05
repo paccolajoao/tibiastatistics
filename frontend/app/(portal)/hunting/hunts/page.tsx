@@ -15,31 +15,44 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { HuntingBalanceChart } from "@/components/charts/hunting-balance-chart";
 import { HuntingXpChart } from "@/components/charts/hunting-xp-chart";
+import { CharacterSelect, ALL_CHARACTERS_VALUE } from "@/components/characters/character-select";
 import { DateRangeFilter } from "@/components/hunting/date-range-filter";
 import { HuntingSessionsTable } from "@/components/hunting/hunting-sessions-table";
 import { ImportHuntingDialog } from "@/components/hunting/import-hunting-dialog";
 import { PeriodLootSummary } from "@/components/hunting/period-loot-summary";
+import { useCharacters } from "@/lib/characters/use-characters";
 import { useHuntingSessions } from "@/lib/hunting/use-hunting-sessions";
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
 export default function HuntingPage() {
   const { data, isLoading, isError } = useHuntingSessions();
+  const { data: characters } = useCharacters();
   const allSessions = useMemo(() => data ?? [], [data]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [characterFilter, setCharacterFilter] = useState<string>(ALL_CHARACTERS_VALUE);
 
   const sessions = useMemo(() => {
-    if (!dateRange?.from) return allSessions;
-    const from = new Date(dateRange.from);
-    from.setHours(0, 0, 0, 0);
-    const to = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
-    to.setHours(23, 59, 59, 999);
+    let filtered = allSessions;
 
-    return allSessions.filter((session) => {
-      const start = new Date(session.session_start);
-      return start >= from && start <= to;
-    });
-  }, [allSessions, dateRange]);
+    if (characterFilter !== ALL_CHARACTERS_VALUE) {
+      filtered = filtered.filter((session) => session.character_id === characterFilter);
+    }
+
+    if (dateRange?.from) {
+      const from = new Date(dateRange.from);
+      from.setHours(0, 0, 0, 0);
+      const to = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+      to.setHours(23, 59, 59, 999);
+
+      filtered = filtered.filter((session) => {
+        const start = new Date(session.session_start);
+        return start >= from && start <= to;
+      });
+    }
+
+    return filtered;
+  }, [allSessions, dateRange, characterFilter]);
 
   const summary = useMemo(() => {
     if (sessions.length === 0) {
@@ -66,6 +79,13 @@ export default function HuntingPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <CharacterSelect
+            characters={characters ?? []}
+            value={characterFilter}
+            onChange={setCharacterFilter}
+            includeAllOption
+            className="w-[200px]"
+          />
           <DateRangeFilter range={dateRange} onChange={setDateRange} />
           <ImportHuntingDialog />
         </div>
@@ -167,18 +187,6 @@ export default function HuntingPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Loot do período</CardTitle>
-              <CardDescription>
-                Total de criaturas mortas e itens lootados somando {sessions.length} sessões
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PeriodLootSummary sessions={sessions} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
               <CardTitle>Hunts</CardTitle>
               <CardDescription>{sessions.length} sessões no período</CardDescription>
             </CardHeader>
@@ -186,6 +194,8 @@ export default function HuntingPage() {
               <HuntingSessionsTable sessions={sessions} />
             </CardContent>
           </Card>
+
+          <PeriodLootSummary sessions={sessions} />
         </>
       )}
     </div>
