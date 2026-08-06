@@ -16,11 +16,14 @@ import { cn } from "@/lib/utils";
 import { HuntingBalanceChart } from "@/components/charts/hunting-balance-chart";
 import { HuntingXpChart } from "@/components/charts/hunting-xp-chart";
 import { CharacterSelect, ALL_CHARACTERS_VALUE } from "@/components/characters/character-select";
+import { HuntTypeSelect, ALL_HUNT_TYPES_VALUE } from "@/components/hunt-types/hunt-type-select";
 import { DateRangeFilter } from "@/components/hunting/date-range-filter";
 import { HuntingSessionsTable } from "@/components/hunting/hunting-sessions-table";
 import { ImportHuntingDialog } from "@/components/hunting/import-hunting-dialog";
 import { PeriodLootSummary } from "@/components/hunting/period-loot-summary";
 import { useCharacters } from "@/lib/characters/use-characters";
+import { useLastSelectedCharacterId } from "@/lib/characters/use-last-selected-character";
+import { useHuntTypes } from "@/lib/hunt-types/use-hunt-types";
 import { useHuntingSessions } from "@/lib/hunting/use-hunting-sessions";
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
@@ -28,15 +31,34 @@ const numberFormatter = new Intl.NumberFormat("pt-BR");
 export default function HuntingPage() {
   const { data, isLoading, isError } = useHuntingSessions();
   const { data: characters } = useCharacters();
+  const { data: huntTypes } = useHuntTypes();
   const allSessions = useMemo(() => data ?? [], [data]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [characterFilter, setCharacterFilter] = useState<string>(ALL_CHARACTERS_VALUE);
+  const [huntTypeFilter, setHuntTypeFilter] = useState<string>(ALL_HUNT_TYPES_VALUE);
+  const { lastCharacterId, setLastCharacterId } = useLastSelectedCharacterId();
+
+  const defaultCharacterFilter =
+    lastCharacterId && characters?.some((character) => character.id === lastCharacterId)
+      ? lastCharacterId
+      : ALL_CHARACTERS_VALUE;
+  const effectiveCharacterFilter =
+    characterFilter !== ALL_CHARACTERS_VALUE ? characterFilter : defaultCharacterFilter;
+
+  function handleCharacterFilterChange(id: string) {
+    setCharacterFilter(id);
+    if (id !== ALL_CHARACTERS_VALUE) setLastCharacterId(id);
+  }
 
   const sessions = useMemo(() => {
     let filtered = allSessions;
 
-    if (characterFilter !== ALL_CHARACTERS_VALUE) {
-      filtered = filtered.filter((session) => session.character_id === characterFilter);
+    if (effectiveCharacterFilter !== ALL_CHARACTERS_VALUE) {
+      filtered = filtered.filter((session) => session.character_id === effectiveCharacterFilter);
+    }
+
+    if (huntTypeFilter !== ALL_HUNT_TYPES_VALUE) {
+      filtered = filtered.filter((session) => session.hunt_type_id === huntTypeFilter);
     }
 
     if (dateRange?.from) {
@@ -52,7 +74,7 @@ export default function HuntingPage() {
     }
 
     return filtered;
-  }, [allSessions, dateRange, characterFilter]);
+  }, [allSessions, dateRange, effectiveCharacterFilter, huntTypeFilter]);
 
   const summary = useMemo(() => {
     if (sessions.length === 0) {
@@ -81,8 +103,15 @@ export default function HuntingPage() {
         <div className="flex items-center gap-2">
           <CharacterSelect
             characters={characters ?? []}
-            value={characterFilter}
-            onChange={setCharacterFilter}
+            value={effectiveCharacterFilter}
+            onChange={handleCharacterFilterChange}
+            includeAllOption
+            className="w-[200px]"
+          />
+          <HuntTypeSelect
+            huntTypes={huntTypes ?? []}
+            value={huntTypeFilter}
+            onChange={setHuntTypeFilter}
             includeAllOption
             className="w-[200px]"
           />

@@ -12,23 +12,44 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CharacterSelect, ALL_CHARACTERS_VALUE } from "@/components/characters/character-select";
+import { HuntTypeSelect, ALL_HUNT_TYPES_VALUE } from "@/components/hunt-types/hunt-type-select";
 import { HuntComparisonCards } from "@/components/hunting/hunt-comparison-cards";
 import { HuntSelector } from "@/components/hunting/hunt-selector";
 import { useCharacters } from "@/lib/characters/use-characters";
+import { useLastSelectedCharacterId } from "@/lib/characters/use-last-selected-character";
+import { useHuntTypes } from "@/lib/hunt-types/use-hunt-types";
 import { useHuntingSessions } from "@/lib/hunting/use-hunting-sessions";
 
 export default function HuntingComparePage() {
   const { data, isLoading, isError } = useHuntingSessions();
   const { data: characters } = useCharacters();
+  const { data: huntTypes } = useHuntTypes();
   const [characterFilter, setCharacterFilter] = useState<string>(ALL_CHARACTERS_VALUE);
+  const [huntTypeFilter, setHuntTypeFilter] = useState<string>(ALL_HUNT_TYPES_VALUE);
+  const { lastCharacterId, setLastCharacterId } = useLastSelectedCharacterId();
+
+  const defaultCharacterFilter =
+    lastCharacterId && characters?.some((character) => character.id === lastCharacterId)
+      ? lastCharacterId
+      : ALL_CHARACTERS_VALUE;
+  const effectiveCharacterFilter =
+    characterFilter !== ALL_CHARACTERS_VALUE ? characterFilter : defaultCharacterFilter;
+
+  function handleCharacterFilterChange(id: string) {
+    setCharacterFilter(id);
+    if (id !== ALL_CHARACTERS_VALUE) setLastCharacterId(id);
+  }
   const allSessions = useMemo(() => data ?? [], [data]);
-  const sessions = useMemo(
-    () =>
-      characterFilter === ALL_CHARACTERS_VALUE
-        ? allSessions
-        : allSessions.filter((s) => s.character_id === characterFilter),
-    [allSessions, characterFilter],
-  );
+  const sessions = useMemo(() => {
+    let filtered = allSessions;
+    if (effectiveCharacterFilter !== ALL_CHARACTERS_VALUE) {
+      filtered = filtered.filter((s) => s.character_id === effectiveCharacterFilter);
+    }
+    if (huntTypeFilter !== ALL_HUNT_TYPES_VALUE) {
+      filtered = filtered.filter((s) => s.hunt_type_id === huntTypeFilter);
+    }
+    return filtered;
+  }, [allSessions, effectiveCharacterFilter, huntTypeFilter]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const selectedSessions = useMemo(
@@ -48,13 +69,22 @@ export default function HuntingComparePage() {
             </p>
           </div>
         </div>
-        <CharacterSelect
-          characters={characters ?? []}
-          value={characterFilter}
-          onChange={setCharacterFilter}
-          includeAllOption
-          className="w-[200px]"
-        />
+        <div className="flex items-center gap-2">
+          <CharacterSelect
+            characters={characters ?? []}
+            value={effectiveCharacterFilter}
+            onChange={handleCharacterFilterChange}
+            includeAllOption
+            className="w-[200px]"
+          />
+          <HuntTypeSelect
+            huntTypes={huntTypes ?? []}
+            value={huntTypeFilter}
+            onChange={setHuntTypeFilter}
+            includeAllOption
+            className="w-[200px]"
+          />
+        </div>
       </div>
 
       {isLoading ? (

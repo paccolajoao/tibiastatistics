@@ -51,6 +51,7 @@ import { CharacterSelect, ALL_CHARACTERS_VALUE } from "@/components/characters/c
 import { CharacterCard } from "@/components/characters/character-card";
 import { useCharacters } from "@/lib/characters/use-characters";
 import { useCharacterSnapshots } from "@/lib/characters/use-character-snapshots";
+import { useLastSelectedCharacterId } from "@/lib/characters/use-last-selected-character";
 import { useHuntingSessions } from "@/lib/hunting/use-hunting-sessions";
 import { useHighscores } from "@/lib/tibia/use-highscores";
 
@@ -60,18 +61,31 @@ function MyCharactersSection() {
   const [selected, setSelected] = useState<string>(ALL_CHARACTERS_VALUE);
   const { data: characters, isLoading: charactersLoading } = useCharacters();
   const { data: sessions } = useHuntingSessions();
-  const { data: snapshots } = useCharacterSnapshots(
-    selected === ALL_CHARACTERS_VALUE ? "" : selected,
-  );
+  const { lastCharacterId, setLastCharacterId } = useLastSelectedCharacterId();
 
   const allCharacters = characters ?? [];
 
+  const defaultSelected =
+    lastCharacterId && allCharacters.some((character) => character.id === lastCharacterId)
+      ? lastCharacterId
+      : ALL_CHARACTERS_VALUE;
+  const effectiveSelected = selected !== ALL_CHARACTERS_VALUE ? selected : defaultSelected;
+
+  const { data: snapshots } = useCharacterSnapshots(
+    effectiveSelected === ALL_CHARACTERS_VALUE ? "" : effectiveSelected,
+  );
+
+  function handleSelectedChange(id: string) {
+    setSelected(id);
+    if (id !== ALL_CHARACTERS_VALUE) setLastCharacterId(id);
+  }
+
   const filteredSessions = useMemo(() => {
     const allSessions = sessions ?? [];
-    return selected === ALL_CHARACTERS_VALUE
+    return effectiveSelected === ALL_CHARACTERS_VALUE
       ? allSessions
-      : allSessions.filter((s) => s.character_id === selected);
-  }, [sessions, selected]);
+      : allSessions.filter((s) => s.character_id === effectiveSelected);
+  }, [sessions, effectiveSelected]);
 
   const summary = useMemo(() => {
     if (filteredSessions.length === 0) {
@@ -95,8 +109,8 @@ function MyCharactersSection() {
         </div>
         <CharacterSelect
           characters={allCharacters}
-          value={selected}
-          onChange={setSelected}
+          value={effectiveSelected}
+          onChange={handleSelectedChange}
           includeAllOption
           className="w-[200px]"
         />
@@ -147,7 +161,7 @@ function MyCharactersSection() {
               </Card>
             </div>
 
-            {selected === ALL_CHARACTERS_VALUE ? (
+            {effectiveSelected === ALL_CHARACTERS_VALUE ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {allCharacters.map((character) => (
                   <CharacterCard key={character.id} character={character} />
