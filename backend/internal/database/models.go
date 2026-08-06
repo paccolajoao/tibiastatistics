@@ -39,6 +39,17 @@ type CharacterSnapshot struct {
 	CapturedAt        pgtype.Timestamptz `json:"captured_at"`
 }
 
+type CreatureBestiary struct {
+	ID         pgtype.UUID        `json:"id"`
+	Name       string             `json:"name"`
+	Difficulty pgtype.Text        `json:"difficulty"`
+	IsBoss     bool               `json:"is_boss"`
+	ResolvedAt pgtype.Timestamptz `json:"resolved_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type GameAssetSprite struct {
 	ID         pgtype.UUID        `json:"id"`
 	Kind       string             `json:"kind"`
@@ -48,6 +59,15 @@ type GameAssetSprite struct {
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type HuntType struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Name      string             `json:"name"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type HuntingSession struct {
@@ -75,6 +95,7 @@ type HuntingSession struct {
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt            pgtype.Timestamptz `json:"deleted_at"`
 	CharacterID          pgtype.UUID        `json:"character_id"`
+	HuntTypeID           pgtype.UUID        `json:"hunt_type_id"`
 }
 
 type User struct {

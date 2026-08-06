@@ -17,7 +17,9 @@ type Dependencies struct {
 	WorldsHandler     *handlers.WorldsHandler
 	HuntingHandler    *handlers.HuntingHandler
 	SpritesHandler    *handlers.SpritesHandler
+	BestiaryHandler   *handlers.BestiaryHandler
 	CharactersHandler *handlers.CharactersHandler
+	HuntTypesHandler  *handlers.HuntTypesHandler
 	Tokens            *auth.TokenManager
 	FrontendOrigin    string
 }
@@ -66,9 +68,11 @@ func New(deps Dependencies) http.Handler {
 				r.Get("/sessions", deps.HuntingHandler.List)
 				r.Delete("/sessions/{id}", deps.HuntingHandler.Delete)
 				r.Patch("/sessions/{id}/character", deps.HuntingHandler.AssignCharacter)
+				r.Patch("/sessions/{id}/hunt-type", deps.HuntingHandler.AssignHuntType)
 			})
 
 			r.Get("/sprites", deps.SpritesHandler.Resolve)
+			r.Get("/bestiary", deps.BestiaryHandler.Resolve)
 
 			r.Route("/characters", func(r chi.Router) {
 				r.Post("/", deps.CharactersHandler.Create)
@@ -77,6 +81,12 @@ func New(deps Dependencies) http.Handler {
 				r.Delete("/{id}", deps.CharactersHandler.Delete)
 				r.Post("/{id}/refresh", deps.CharactersHandler.Refresh)
 				r.Get("/{id}/snapshots", deps.CharactersHandler.Snapshots)
+			})
+
+			r.Route("/hunt-types", func(r chi.Router) {
+				r.Post("/", deps.HuntTypesHandler.Create)
+				r.Get("/", deps.HuntTypesHandler.List)
+				r.Delete("/{id}", deps.HuntTypesHandler.Delete)
 			})
 		})
 	})

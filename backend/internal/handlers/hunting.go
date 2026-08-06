@@ -75,6 +75,7 @@ type huntingSession struct {
 	LootedItems          []lootedItem    `json:"looted_items"`
 	CreatedAt            time.Time       `json:"created_at"`
 	CharacterID          *string         `json:"character_id"`
+	HuntTypeID           *string         `json:"hunt_type_id"`
 }
 
 var nonDigitPattern = regexp.MustCompile(`[^0-9-]`)
@@ -278,6 +279,22 @@ func (h *HuntingHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var huntTypeID pgtype.UUID
+	huntTypeIDRaw := strings.TrimSpace(r.FormValue("hunt_type_id"))
+	if huntTypeIDRaw != "" {
+		if err := huntTypeID.Scan(huntTypeIDRaw); err != nil {
+			http.Error(w, "invalid hunt_type_id", http.StatusBadRequest)
+			return
+		}
+		if _, err := h.queries.GetHuntTypeByID(r.Context(), database.GetHuntTypeByIDParams{
+			ID:     huntTypeID,
+			UserID: userID,
+		}); err != nil {
+			http.Error(w, "hunt type not found", http.StatusBadRequest)
+			return
+		}
+	}
+
 	sessionStart, err := parseSessionTime(payload.SessionStart)
 	if err != nil {
 		http.Error(w, "invalid session start: "+err.Error(), http.StatusBadRequest)
@@ -349,6 +366,7 @@ func (h *HuntingHandler) Import(w http.ResponseWriter, r *http.Request) {
 		KilledMonsters:       killedMonsters,
 		LootedItems:          lootedItems,
 		CharacterID:          characterID,
+		HuntTypeID:           huntTypeID,
 	})
 	if err != nil {
 		http.Error(w, "failed to save hunting session", http.StatusInternalServerError)
@@ -428,6 +446,55 @@ func (h *HuntingHandler) AssignCharacter(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, toHuntingSession(row))
 }
 
+type assignHuntTypePayload struct {
+	HuntTypeID string `json:"hunt_type_id"`
+}
+
+func (h *HuntingHandler) AssignHuntType(w http.ResponseWriter, r *http.Request) {
+	userID, ok := userUUID(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var id pgtype.UUID
+	if err := id.Scan(chi.URLParam(r, "id")); err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	var payload assignHuntTypePayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var huntTypeID pgtype.UUID
+	if err := huntTypeID.Scan(strings.TrimSpace(payload.HuntTypeID)); err != nil {
+		http.Error(w, "invalid hunt_type_id", http.StatusBadRequest)
+		return
+	}
+	if _, err := h.queries.GetHuntTypeByID(r.Context(), database.GetHuntTypeByIDParams{
+		ID:     huntTypeID,
+		UserID: userID,
+	}); err != nil {
+		http.Error(w, "hunt type not found", http.StatusBadRequest)
+		return
+	}
+
+	row, err := h.queries.UpdateHuntingSessionHuntType(r.Context(), database.UpdateHuntingSessionHuntTypeParams{
+		ID:         id,
+		UserID:     userID,
+		HuntTypeID: huntTypeID,
+	})
+	if err != nil {
+		http.Error(w, "failed to update hunting session", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toHuntingSession(row))
+}
+
 func (h *HuntingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID, ok := userUUID(r)
 	if !ok {
@@ -464,6 +531,12 @@ func toHuntingSession(row database.HuntingSession) huntingSession {
 		characterID = &s
 	}
 
+	var huntTypeID *string
+	if row.HuntTypeID.Valid {
+		s := uuidString(row.HuntTypeID)
+		huntTypeID = &s
+	}
+
 	return huntingSession{
 		ID:                   uuidString(row.ID),
 		Name:                 row.Name,
@@ -486,6 +559,7 @@ func toHuntingSession(row database.HuntingSession) huntingSession {
 		LootedItems:          looted,
 		CreatedAt:            row.CreatedAt.Time,
 		CharacterID:          characterID,
+		HuntTypeID:           huntTypeID,
 	}
 }
 

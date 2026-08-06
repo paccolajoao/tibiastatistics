@@ -35,16 +35,16 @@ INSERT INTO hunting_sessions (
     session_start, session_end, session_length_seconds,
     balance, damage, damage_per_hour, healing, healing_per_hour,
     loot, supplies, xp_gain, xp_per_hour, raw_xp_gain, raw_xp_per_hour,
-    killed_monsters, looted_items, character_id
+    killed_monsters, looted_items, character_id, hunt_type_id
 )
 VALUES (
     $1, $2, $3,
     $4, $5, $6,
     $7, $8, $9, $10, $11,
     $12, $13, $14, $15, $16, $17,
-    $18, $19, $20
+    $18, $19, $20, $21
 )
-RETURNING id, user_id, name, loadout, session_start, session_end, session_length_seconds, balance, damage, damage_per_hour, healing, healing_per_hour, loot, supplies, xp_gain, xp_per_hour, raw_xp_gain, raw_xp_per_hour, killed_monsters, looted_items, created_at, updated_at, deleted_at, character_id
+RETURNING id, user_id, name, loadout, session_start, session_end, session_length_seconds, balance, damage, damage_per_hour, healing, healing_per_hour, loot, supplies, xp_gain, xp_per_hour, raw_xp_gain, raw_xp_per_hour, killed_monsters, looted_items, created_at, updated_at, deleted_at, character_id, hunt_type_id
 `
 
 type InsertHuntingSessionParams struct {
@@ -68,6 +68,7 @@ type InsertHuntingSessionParams struct {
 	KilledMonsters       []byte             `json:"killed_monsters"`
 	LootedItems          []byte             `json:"looted_items"`
 	CharacterID          pgtype.UUID        `json:"character_id"`
+	HuntTypeID           pgtype.UUID        `json:"hunt_type_id"`
 }
 
 func (q *Queries) InsertHuntingSession(ctx context.Context, arg InsertHuntingSessionParams) (HuntingSession, error) {
@@ -92,6 +93,7 @@ func (q *Queries) InsertHuntingSession(ctx context.Context, arg InsertHuntingSes
 		arg.KilledMonsters,
 		arg.LootedItems,
 		arg.CharacterID,
+		arg.HuntTypeID,
 	)
 	var i HuntingSession
 	err := row.Scan(
@@ -119,12 +121,13 @@ func (q *Queries) InsertHuntingSession(ctx context.Context, arg InsertHuntingSes
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.CharacterID,
+		&i.HuntTypeID,
 	)
 	return i, err
 }
 
 const listHuntingSessions = `-- name: ListHuntingSessions :many
-SELECT id, user_id, name, loadout, session_start, session_end, session_length_seconds, balance, damage, damage_per_hour, healing, healing_per_hour, loot, supplies, xp_gain, xp_per_hour, raw_xp_gain, raw_xp_per_hour, killed_monsters, looted_items, created_at, updated_at, deleted_at, character_id
+SELECT id, user_id, name, loadout, session_start, session_end, session_length_seconds, balance, damage, damage_per_hour, healing, healing_per_hour, loot, supplies, xp_gain, xp_per_hour, raw_xp_gain, raw_xp_per_hour, killed_monsters, looted_items, created_at, updated_at, deleted_at, character_id, hunt_type_id
 FROM hunting_sessions
 WHERE user_id = $1
   AND deleted_at IS NULL
@@ -165,6 +168,7 @@ func (q *Queries) ListHuntingSessions(ctx context.Context, userID pgtype.UUID) (
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.CharacterID,
+			&i.HuntTypeID,
 		); err != nil {
 			return nil, err
 		}
@@ -182,7 +186,7 @@ SET character_id = $3
 WHERE id = $1
   AND user_id = $2
   AND deleted_at IS NULL
-RETURNING id, user_id, name, loadout, session_start, session_end, session_length_seconds, balance, damage, damage_per_hour, healing, healing_per_hour, loot, supplies, xp_gain, xp_per_hour, raw_xp_gain, raw_xp_per_hour, killed_monsters, looted_items, created_at, updated_at, deleted_at, character_id
+RETURNING id, user_id, name, loadout, session_start, session_end, session_length_seconds, balance, damage, damage_per_hour, healing, healing_per_hour, loot, supplies, xp_gain, xp_per_hour, raw_xp_gain, raw_xp_per_hour, killed_monsters, looted_items, created_at, updated_at, deleted_at, character_id, hunt_type_id
 `
 
 type UpdateHuntingSessionCharacterParams struct {
@@ -219,6 +223,55 @@ func (q *Queries) UpdateHuntingSessionCharacter(ctx context.Context, arg UpdateH
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.CharacterID,
+		&i.HuntTypeID,
+	)
+	return i, err
+}
+
+const updateHuntingSessionHuntType = `-- name: UpdateHuntingSessionHuntType :one
+UPDATE hunting_sessions
+SET hunt_type_id = $3
+WHERE id = $1
+  AND user_id = $2
+  AND deleted_at IS NULL
+RETURNING id, user_id, name, loadout, session_start, session_end, session_length_seconds, balance, damage, damage_per_hour, healing, healing_per_hour, loot, supplies, xp_gain, xp_per_hour, raw_xp_gain, raw_xp_per_hour, killed_monsters, looted_items, created_at, updated_at, deleted_at, character_id, hunt_type_id
+`
+
+type UpdateHuntingSessionHuntTypeParams struct {
+	ID         pgtype.UUID `json:"id"`
+	UserID     pgtype.UUID `json:"user_id"`
+	HuntTypeID pgtype.UUID `json:"hunt_type_id"`
+}
+
+func (q *Queries) UpdateHuntingSessionHuntType(ctx context.Context, arg UpdateHuntingSessionHuntTypeParams) (HuntingSession, error) {
+	row := q.db.QueryRow(ctx, updateHuntingSessionHuntType, arg.ID, arg.UserID, arg.HuntTypeID)
+	var i HuntingSession
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Loadout,
+		&i.SessionStart,
+		&i.SessionEnd,
+		&i.SessionLengthSeconds,
+		&i.Balance,
+		&i.Damage,
+		&i.DamagePerHour,
+		&i.Healing,
+		&i.HealingPerHour,
+		&i.Loot,
+		&i.Supplies,
+		&i.XpGain,
+		&i.XpPerHour,
+		&i.RawXpGain,
+		&i.RawXpPerHour,
+		&i.KilledMonsters,
+		&i.LootedItems,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.CharacterID,
+		&i.HuntTypeID,
 	)
 	return i, err
 }

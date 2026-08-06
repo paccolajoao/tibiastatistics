@@ -15,7 +15,9 @@ type Querier interface {
 	DeleteCharacterSnapshotsOlderThan(ctx context.Context, capturedAt pgtype.Timestamptz) error
 	DeleteHuntingSession(ctx context.Context, arg DeleteHuntingSessionParams) error
 	DeleteSnapshotsOlderThan(ctx context.Context, collectedAt pgtype.Timestamptz) error
+	GetBestiaryByNames(ctx context.Context, names []string) ([]CreatureBestiary, error)
 	GetCharacterByID(ctx context.Context, arg GetCharacterByIDParams) (Character, error)
+	GetHuntTypeByID(ctx context.Context, arg GetHuntTypeByIDParams) (HuntType, error)
 	GetSpritesByNames(ctx context.Context, arg GetSpritesByNamesParams) ([]GameAssetSprite, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error)
@@ -24,16 +26,21 @@ type Querier interface {
 	GetWorldTimeSeries(ctx context.Context, arg GetWorldTimeSeriesParams) ([]GetWorldTimeSeriesRow, error)
 	InsertCharacter(ctx context.Context, arg InsertCharacterParams) (Character, error)
 	InsertCharacterSnapshot(ctx context.Context, arg InsertCharacterSnapshotParams) error
+	InsertHuntType(ctx context.Context, arg InsertHuntTypeParams) (HuntType, error)
 	InsertHuntingSession(ctx context.Context, arg InsertHuntingSessionParams) (HuntingSession, error)
 	InsertWorldPlayerSnapshot(ctx context.Context, arg InsertWorldPlayerSnapshotParams) error
 	ListAllActiveCharacters(ctx context.Context) ([]Character, error)
 	ListCharacterSnapshots(ctx context.Context, arg ListCharacterSnapshotsParams) ([]CharacterSnapshot, error)
 	ListCharactersByUser(ctx context.Context, userID pgtype.UUID) ([]Character, error)
+	ListHuntTypesByUser(ctx context.Context, userID pgtype.UUID) ([]HuntType, error)
 	ListHuntingSessions(ctx context.Context, userID pgtype.UUID) ([]HuntingSession, error)
 	SoftDeleteCharacter(ctx context.Context, arg SoftDeleteCharacterParams) error
+	SoftDeleteHuntType(ctx context.Context, arg SoftDeleteHuntTypeParams) error
 	UpdateCharacterSnapshot(ctx context.Context, arg UpdateCharacterSnapshotParams) (Character, error)
 	UpdateHuntingSessionCharacter(ctx context.Context, arg UpdateHuntingSessionCharacterParams) (HuntingSession, error)
+	UpdateHuntingSessionHuntType(ctx context.Context, arg UpdateHuntingSessionHuntTypeParams) (HuntingSession, error)
 	UpsertAdminUser(ctx context.Context, arg UpsertAdminUserParams) (UpsertAdminUserRow, error)
+	UpsertBestiary(ctx context.Context, arg UpsertBestiaryParams) error
 	UpsertSprite(ctx context.Context, arg UpsertSpriteParams) error
 }
 
