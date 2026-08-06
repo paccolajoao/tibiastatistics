@@ -14,9 +14,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CharacterSelect } from "@/components/characters/character-select";
+import { HuntTypeSelect } from "@/components/hunt-types/hunt-type-select";
 import { HuntingSessionDetails } from "@/components/hunting/hunting-session-details";
 import { useCharacters } from "@/lib/characters/use-characters";
+import { useHuntTypes } from "@/lib/hunt-types/use-hunt-types";
 import { useAssignHuntingSessionCharacter } from "@/lib/hunting/use-assign-hunting-session-character";
+import { useAssignHuntingSessionHuntType } from "@/lib/hunting/use-assign-hunting-session-hunt-type";
 import { useDeleteHuntingSession } from "@/lib/hunting/use-delete-hunting-session";
 import type { HuntingSession } from "@/lib/hunting/types";
 import { cn } from "@/lib/utils";
@@ -37,10 +40,13 @@ function formatDuration(seconds: number) {
 export function HuntingSessionsTable({ sessions }: { sessions: HuntingSession[] }) {
   const { mutate: deleteSession, isPending } = useDeleteHuntingSession();
   const { mutate: assignCharacter } = useAssignHuntingSessionCharacter();
+  const { mutate: assignHuntType } = useAssignHuntingSessionHuntType();
   const { data: characters } = useCharacters();
+  const { data: huntTypes } = useHuntTypes();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const characterById = new Map((characters ?? []).map((c) => [c.id, c]));
+  const huntTypeById = new Map((huntTypes ?? []).map((h) => [h.id, h]));
 
   return (
     <Table>
@@ -49,6 +55,7 @@ export function HuntingSessionsTable({ sessions }: { sessions: HuntingSession[] 
           <TableHead className="w-8" />
           <TableHead>Nome</TableHead>
           <TableHead>Personagem</TableHead>
+          <TableHead>Tipo de hunt</TableHead>
           <TableHead>Set</TableHead>
           <TableHead>Data</TableHead>
           <TableHead>Duração</TableHead>
@@ -90,6 +97,22 @@ export function HuntingSessionsTable({ sessions }: { sessions: HuntingSession[] 
                         assignCharacter({ sessionId: session.id, characterId })
                       }
                       placeholder="Vincular personagem"
+                      size="sm"
+                      className="w-[180px]"
+                    />
+                  )}
+                </TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  {session.hunt_type_id && huntTypeById.get(session.hunt_type_id) ? (
+                    <Badge variant="secondary">{huntTypeById.get(session.hunt_type_id)!.name}</Badge>
+                  ) : (
+                    <HuntTypeSelect
+                      huntTypes={huntTypes ?? []}
+                      value=""
+                      onChange={(huntTypeId) =>
+                        assignHuntType({ sessionId: session.id, huntTypeId })
+                      }
+                      placeholder="Vincular tipo de hunt"
                       size="sm"
                       className="w-[180px]"
                     />
@@ -150,7 +173,7 @@ export function HuntingSessionsTable({ sessions }: { sessions: HuntingSession[] 
               </TableRow>
               {isExpanded ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={11} className="bg-muted/30 p-0">
+                  <TableCell colSpan={12} className="bg-muted/30 p-0">
                     <HuntingSessionDetails session={session} />
                   </TableCell>
                 </TableRow>

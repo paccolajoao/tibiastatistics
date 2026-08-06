@@ -7,13 +7,14 @@ export type ImportHuntingSessionInput = {
   name: string;
   loadout: string;
   characterId: string;
+  huntTypeId?: string;
 } & ({ file: File; text?: never } | { text: string; file?: never });
 
 export function useImportHuntingSession() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ name, loadout, characterId, ...source }: ImportHuntingSessionInput) => {
+    mutationFn: ({ name, loadout, characterId, huntTypeId, ...source }: ImportHuntingSessionInput) => {
       const formData = new FormData();
       if (source.file) {
         formData.append("file", source.file);
@@ -23,6 +24,7 @@ export function useImportHuntingSession() {
       formData.append("name", name);
       formData.append("loadout", loadout);
       formData.append("character_id", characterId);
+      if (huntTypeId) formData.append("hunt_type_id", huntTypeId);
       return apiClient.postForm<HuntingSession>("/api/hunting/sessions", formData);
     },
     onSuccess: () => {

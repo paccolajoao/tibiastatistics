@@ -20,7 +20,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { CharacterSelect } from "@/components/characters/character-select";
+import { HuntTypeCombobox } from "@/components/hunt-types/hunt-type-combobox";
 import { useCharacters } from "@/lib/characters/use-characters";
+import { useLastSelectedCharacterId } from "@/lib/characters/use-last-selected-character";
+import { useHuntTypes } from "@/lib/hunt-types/use-hunt-types";
 import { useImportHuntingSession } from "@/lib/hunting/use-import-hunting-session";
 
 type ImportMode = "file" | "text";
@@ -33,9 +36,23 @@ export function ImportHuntingDialog() {
   const [name, setName] = useState("");
   const [loadout, setLoadout] = useState("");
   const [characterId, setCharacterId] = useState("");
+  const [huntTypeId, setHuntTypeId] = useState("");
   const { mutate, isPending, error, reset } = useImportHuntingSession();
   const { data: characters } = useCharacters();
+  const { data: huntTypes } = useHuntTypes();
+  const { lastCharacterId, setLastCharacterId } = useLastSelectedCharacterId();
   const hasCharacters = (characters?.length ?? 0) > 0;
+
+  const defaultCharacterId =
+    lastCharacterId && characters?.some((character) => character.id === lastCharacterId)
+      ? lastCharacterId
+      : "";
+  const effectiveCharacterId = characterId || defaultCharacterId;
+
+  function handleCharacterChange(id: string) {
+    setCharacterId(id);
+    setLastCharacterId(id);
+  }
 
   function resetForm() {
     setMode("file");
@@ -44,6 +61,7 @@ export function ImportHuntingDialog() {
     setName("");
     setLoadout("");
     setCharacterId("");
+    setHuntTypeId("");
     reset();
   }
 
@@ -51,12 +69,24 @@ export function ImportHuntingDialog() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isSourceValid || !name.trim() || !characterId) return;
+    if (!isSourceValid || !name.trim() || !effectiveCharacterId) return;
 
     mutate(
       mode === "file"
-        ? { file: file as File, name: name.trim(), loadout: loadout.trim(), characterId }
-        : { text: text.trim(), name: name.trim(), loadout: loadout.trim(), characterId },
+        ? {
+            file: file as File,
+            name: name.trim(),
+            loadout: loadout.trim(),
+            characterId: effectiveCharacterId,
+            huntTypeId: huntTypeId || undefined,
+          }
+        : {
+            text: text.trim(),
+            name: name.trim(),
+            loadout: loadout.trim(),
+            characterId: effectiveCharacterId,
+            huntTypeId: huntTypeId || undefined,
+          },
       {
         onSuccess: () => {
           setOpen(false);
@@ -106,8 +136,8 @@ export function ImportHuntingDialog() {
                 <Label>Personagem</Label>
                 <CharacterSelect
                   characters={characters ?? []}
-                  value={characterId}
-                  onChange={setCharacterId}
+                  value={effectiveCharacterId}
+                  onChange={handleCharacterChange}
                   placeholder="Selecione o personagem desta hunt"
                   className="w-full"
                 />
@@ -132,6 +162,15 @@ export function ImportHuntingDialog() {
                 placeholder="Ex: Set de XP + Falcon Coif"
                 value={loadout}
                 onChange={(e) => setLoadout(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label>Tipo de hunt (opcional)</Label>
+              <HuntTypeCombobox
+                huntTypes={huntTypes ?? []}
+                value={huntTypeId}
+                onChange={setHuntTypeId}
               />
             </div>
 
@@ -178,7 +217,7 @@ export function ImportHuntingDialog() {
             </DialogClose>
             <Button
               type="submit"
-              disabled={!isSourceValid || !name.trim() || !characterId || isPending}
+              disabled={!isSourceValid || !name.trim() || !effectiveCharacterId || isPending}
             >
               {isPending ? "Importando..." : "Importar"}
             </Button>

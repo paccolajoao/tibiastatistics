@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Trophy, User, LogOut, Globe, Swords, UserCircle } from "lucide-react";
+import { LayoutDashboard, Trophy, User, LogOut, Globe, Swords, Target, UserCircle } from "lucide-react";
 
 import {
   Sidebar,
@@ -32,8 +32,10 @@ const menuItems = [
     children: [
       { title: "Hunts", href: "/hunting/hunts" },
       { title: "Comparação", href: "/hunting/compare" },
+      { title: "Tipos de hunt", href: "/hunting/types" },
     ],
   },
+  { title: "Bounty", href: "/bounty", icon: Target },
 ];
 
 export function AppSidebar() {

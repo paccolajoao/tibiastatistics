@@ -30,4 +30,5 @@ export type HuntingSession = {
   looted_items: LootedItem[];
   created_at: string;
   character_id: string | null;
+  hunt_type_id: string | null;
 };
